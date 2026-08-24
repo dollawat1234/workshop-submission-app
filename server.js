@@ -215,16 +215,20 @@ app.get(['/join', '/submit', '/p'], (req, res) => {
 // 1. Network Info
 app.get('/api/network-info', (req, res) => {
   const ip = getLocalNetworkIP();
-  const protocol = req.protocol;
-  const host = req.get('host');
-  const port = PORT;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${PORT}`;
+  const isPublic = host && !host.includes('localhost') && !host.includes('127.0.0.1');
+  const currentOrigin = `${protocol}://${host}`;
+  const publicUrl = isPublic ? currentOrigin : (process.env.PUBLIC_URL || null);
 
   res.json({
     ip,
-    port,
-    localUrl: `http://localhost:${port}/join`,
-    networkUrl: `http://${ip}:${port}/join`,
-    currentUrl: `${protocol}://${host}/join`
+    port: PORT,
+    isPublic,
+    localUrl: `http://localhost:${PORT}/join`,
+    networkUrl: publicUrl ? `${publicUrl}/join` : `http://${ip}:${PORT}/join`,
+    currentUrl: `${currentOrigin}/join`,
+    publicUrl
   });
 });
 

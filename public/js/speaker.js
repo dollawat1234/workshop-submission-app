@@ -100,19 +100,30 @@ async function fetchAllData() {
   }
 }
 
-// 3. Fetch Network Info & QR Code
+// 3. Fetch Network Info & QR Code (Always Prioritizes the Real Public Website URL)
 async function fetchNetworkInfo() {
-  try {
-    const res = await fetch('/api/network-info');
-    const data = await res.json();
-    if (data.networkUrl) {
-      currentNetworkUrl = data.networkUrl;
+  // If speaker dashboard is opened from any domain (Cloudflare, Render, Custom domain, HTTPS, etc.),
+  // window.location.origin + '/join' is ALWAYS the exact public URL!
+  let targetUrl = `${window.location.origin}/join`;
+
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    try {
+      const res = await fetch('/api/network-info');
+      const data = await res.json();
+      if (data.publicUrl) {
+        targetUrl = `${data.publicUrl}/join`;
+      } else if (data.isPublic && data.currentUrl) {
+        targetUrl = data.currentUrl;
+      } else if (data.networkUrl) {
+        targetUrl = data.networkUrl;
+      }
+    } catch (e) {
+      targetUrl = `${window.location.origin}/join`;
     }
-    renderQRCodes(currentNetworkUrl);
-  } catch (e) {
-    console.warn('Using window.location for QR', e);
-    renderQRCodes(window.location.origin + '/join');
   }
+
+  currentNetworkUrl = targetUrl;
+  renderQRCodes(currentNetworkUrl);
 }
 
 function renderQRCodes(url) {
