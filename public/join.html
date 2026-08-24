@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ส่งผลงานเวิร์กชอป | AI Workshop</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="p-3 sm:p-6 flex flex-col items-center justify-start min-h-screen">
+
+  <main class="w-full max-w-md mx-auto space-y-4 pb-12">
+    
+    <!-- Redesigned Deep Blue Header Banner with Mascot -->
+    <header class="header-blue-card p-5 sm:p-6 rounded-3xl relative overflow-hidden shadow-xl border border-blue-400/30">
+      <!-- Ambient Glow Orbs in Background -->
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="flex items-center justify-between gap-3 relative z-10">
+        <div class="space-y-1.5 max-w-[62%] min-w-0">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="inline-block bg-white/20 text-white border border-white/30 backdrop-blur-md px-2.5 py-0.5 rounded-full text-[11px] font-extrabold tracking-wide" id="sessionBadge">
+              AI WORKSHOP
+            </span>
+            <span class="inline-block bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full text-[11px] font-black shadow-sm">
+              ส่งผลงาน
+            </span>
+          </div>
+          
+          <h1 class="text-xl sm:text-2xl font-black text-white leading-snug tracking-tight drop-shadow-sm line-clamp-3" id="sessionTitle">
+            ส่งผลงานเวิร์กชอป
+          </h1>
+          
+          <p class="text-xs text-blue-100 font-medium leading-relaxed" id="sessionSubtitle">
+            อัปโหลดรูปภาพหรือไฟล์ผลงานขึ้นสู่จอ
+          </p>
+        </div>
+
+        <div class="w-24 sm:w-28 flex-shrink-0 mascot-float relative z-10" id="headerMascotSlot">
+          <!-- Injected Cute Laptop Mascot -->
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Submission Form (Dynamically Adapts Theme Color to Selected Team) -->
+    <form id="submissionForm" class="workshop-card p-4 sm:p-5 space-y-5 bg-white border-2 border-slate-200 shadow-sm transition-all duration-300">
+      
+      <!-- Step 1: Team Dropdown & Current Team Identity Banner -->
+      <div class="space-y-3 pb-3 border-b border-slate-100">
+        <div>
+          <label class="block text-xs font-bold text-slate-900 mb-1.5 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+              <span class="step-badge w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300">1</span>
+              <span>ทีมของคุณ (Team) <span class="text-rose-500">*</span></span>
+            </span>
+            <button type="button" id="reopenTeamModalBtn" class="text-[11px] text-blue-600 hover:opacity-80 font-bold flex items-center gap-1 transition-colors">
+              <i data-lucide="refresh-cw" class="w-3 h-3"></i> เลือกทีมใหม่
+            </button>
+          </label>
+
+          <div class="relative">
+            <select id="teamSelectDropdown" name="teamId" class="w-full px-3.5 py-3 text-sm font-extrabold rounded-xl border-2 border-blue-200 bg-blue-50/50 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none cursor-pointer" required>
+              <option value="" disabled selected>-- กรุณาเลือกทีมของคุณ --</option>
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-600">
+              <i data-lucide="chevron-down" class="w-4 h-4"></i>
+            </div>
+          </div>
+
+          <!-- Current Team Banner Visual Identity -->
+          <div id="currentTeamIdentityBanner" class="mt-2 p-2.5 rounded-xl border border-blue-200 bg-blue-50/80 flex items-center justify-between transition-all hidden">
+            <div class="flex items-center gap-2 min-w-0">
+              <div id="identityTeamCode" class="w-6 h-6 rounded-md font-bold text-xs text-white flex items-center justify-center flex-shrink-0" style="background-color: #1E5AF6;">A</div>
+              <p class="text-xs font-extrabold text-blue-900 truncate" id="identityTeamName">ทีม A (Alpha)</p>
+            </div>
+            <span class="text-[10px] font-bold text-blue-700 bg-white px-2 py-0.5 rounded-md border border-blue-200 flex-shrink-0" id="identityTeamCount">ส่งแล้ว 0 ชิ้น</span>
+          </div>
+
+          <p id="teamErrorMsg" class="text-xs text-rose-500 mt-1 hidden flex items-center gap-1 font-semibold">
+            <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> กรุณาเลือกทีมก่อนส่งผลงาน
+          </p>
+        </div>
+
+        <!-- Submitter Name / Members -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
+            <span>ชื่อของคุณ / สมาชิกในทีม</span>
+            <span class="text-slate-400 font-normal">ไม่บังคับ</span>
+          </label>
+          <input type="text" id="submitterInput" name="submitterName" placeholder="เช่น บอส, แจน, หรือสมาชิกทีม A" class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all">
+        </div>
+      </div>
+
+      <!-- Step 2: Upload File (Photo / Document) -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-900 flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <span class="step-badge w-5 h-5 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300">2</span>
+            <span>แนบไฟล์รูปภาพ / ผลงาน <span class="text-rose-500">*</span></span>
+          </span>
+          <span class="text-[11px] text-slate-500 font-normal" id="fileLimitLabel">ไม่เกิน 25MB</span>
+        </label>
+
+        <!-- Drop / Tap Zone (Theme Border & Tint) -->
+        <div id="dropZone" class="upload-zone relative transition-all duration-300">
+          <input type="file" id="fileInput" name="file" accept="image/*,.pdf,.pptx,.ppt,.docx,.doc,.txt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" required>
+          
+          <div id="uploadPrompt" class="space-y-2 pointer-events-none">
+            <div id="uploadPromptIconBox" class="w-12 h-12 mx-auto bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner transition-colors duration-300">
+              <i data-lucide="image-plus" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs sm:text-sm font-bold text-slate-800">
+                แตะเพื่อเลือกรูปภาพ หรือ ถ่ายรูป
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                รองรับไฟล์ JPG, PNG, WEBP, PDF หรือไฟล์สไลด์
+              </p>
+            </div>
+            <div id="uploadChooseBtnBadge" class="inline-flex items-center gap-1 px-3.5 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-bold text-blue-600 shadow-sm transition-colors duration-300">
+              <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+              <span>เลือกไฟล์จากเครื่อง / เปิดกล้อง</span>
+            </div>
+          </div>
+
+          <!-- Selected File Preview -->
+          <div id="filePreviewWrapper" class="hidden text-left pointer-events-auto relative z-20">
+            <div class="preview-container mb-2 bg-slate-900 flex items-center justify-center min-h-[140px] max-h-[250px] rounded-xl overflow-hidden">
+              <img id="imagePreview" src="" alt="พรีวิวรูปภาพ" class="max-h-[240px] object-contain hidden">
+              <div id="docPreview" class="p-5 text-center text-white hidden">
+                <i data-lucide="file-text" class="w-12 h-12 mx-auto text-blue-400 mb-1"></i>
+                <p class="text-xs font-bold text-slate-200 truncate max-w-[220px]" id="docFileName">document.pdf</p>
+              </div>
+            </div>
+
+            <div id="previewDetailBox" class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-blue-100 shadow-sm transition-all duration-300">
+              <div class="flex items-center gap-2 overflow-hidden min-w-0 flex-1">
+                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+                <div class="truncate">
+                  <p class="text-xs font-bold text-slate-800 truncate" id="selectedFileName">filename.jpg</p>
+                  <p class="text-[10px] text-slate-400" id="selectedFileSize">0 MB</p>
+                </div>
+              </div>
+              <button type="button" id="removeFileBtn" class="w-11 h-11 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all flex-shrink-0 ml-2" title="ยกเลิกไฟล์">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload Progress Bar -->
+        <div id="uploadProgressContainer" class="hidden space-y-1 pt-1">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+            <span>กำลังส่งผลงาน...</span>
+            <span id="uploadProgressPercent">0%</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+            <div id="uploadProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-150" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <p id="fileErrorMsg" class="text-xs text-rose-500 mt-1 hidden flex items-center gap-1 font-semibold">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i> กรุณาเลือกไฟล์
+        </p>
+      </div>
+
+      <!-- Step 3: Optional Caption / Prompt Note -->
+      <div class="space-y-1.5 pt-1">
+        <label class="block text-xs font-semibold text-slate-700 flex items-center justify-between">
+          <span>Prompt หรือ คำอธิบายไอเดีย</span>
+          <span class="text-slate-400 font-normal">ไม่บังคับ</span>
+        </label>
+        <textarea id="captionInput" name="caption" rows="2" placeholder="ใส่ข้อความ Prompt หรือแนวคิดของผลงานนี้..." class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none transition-all"></textarea>
+      </div>
+
+      <!-- Submit Button (Adapts Team Color Gradient) -->
+      <div class="pt-2">
+        <button type="submit" id="submitBtn" class="btn-primary transition-all duration-300">
+          <i data-lucide="send" class="w-5 h-5"></i>
+          <span>ส่งผลงานเลย! 🚀</span>
+        </button>
+      </div>
+    </form>
+
+    <!-- Submissions of Selected Team (View Only) -->
+    <section class="workshop-card p-4 bg-white/90 border border-slate-200 shadow-sm">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="folder-check" class="w-4 h-4 text-blue-600"></i>
+          <h3 class="text-xs sm:text-sm font-bold text-slate-800">ผลงานที่ทีมคุณส่งแล้ว (ดูย้อนหลัง)</h3>
+        </div>
+        <button type="button" id="refreshMySubmissionsBtn" class="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold">
+          <i data-lucide="rotate-cw" class="w-3 h-3"></i>
+          <span>รีเฟรช</span>
+        </button>
+      </div>
+
+      <div id="mySubmissionsList" class="space-y-2">
+        <p class="text-xs text-slate-400 text-center py-3">เลือกทีมเพื่อดูผลงานที่ส่งแล้ว</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 1. Initial Pop-up Modal to Choose Team on First Entry -->
+  <div id="initialTeamModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="workshop-card max-w-sm w-full p-5 sm:p-6 text-center bg-white shadow-2xl relative animate-scale-up max-h-[85vh] flex flex-col justify-between">
+      
+      <button type="button" id="closeInitialModalBtn" class="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg" title="ปิดหน้าต่าง">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div>
+        <div class="w-20 h-16 mx-auto mb-1 mascot-float" id="popupMascotSlot">
+          <!-- Injected Mascot -->
+        </div>
+
+        <div class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-bold mb-2 border border-blue-200">
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+          <span>ยินดีต้อนรับสู่เวิร์กชอป</span>
+        </div>
+
+        <h3 class="text-xl font-black text-slate-900 mb-1">
+          คุณอยู่ทีมไหน?
+        </h3>
+        <p class="text-xs text-slate-500 mb-3 font-medium">
+          กรุณาแตะเลือกทีมของคุณเพื่อเริ่มส่งผลงาน
+        </p>
+
+        <!-- Team Select Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto p-1 text-left" id="modalTeamListContainer">
+          <!-- Dynamic populated team buttons -->
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-400 pt-3 border-t border-slate-100 mt-2">
+        * สามารถเปลี่ยนทีมได้ในภายหลังที่ช่องเลือกทีม
+      </p>
+    </div>
+  </div>
+
+  <!-- 2. View-Only Submission Lightbox Modal -->
+  <div id="viewSubmissionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="workshop-card max-w-sm w-full p-5 bg-white shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100 mb-3">
+        <div class="flex items-center gap-1.5">
+          <span class="px-2.5 py-0.5 rounded-full text-xs font-bold text-white" id="viewModalTeamBadge" style="background-color: #1E5AF6;">
+            ทีม A
+          </span>
+          <span class="text-xs font-bold text-slate-800">ผลงานที่ส่งแล้ว</span>
+        </div>
+        <button type="button" id="closeViewModalBtn" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="bg-slate-900 rounded-xl overflow-hidden mb-3 flex items-center justify-center min-h-[160px] max-h-[260px]">
+        <img id="viewModalImage" src="" alt="ผลงาน" class="max-h-[250px] object-contain hidden">
+        <div id="viewModalDoc" class="p-6 text-center text-white hidden">
+          <i data-lucide="file-text" class="w-12 h-12 mx-auto text-blue-400 mb-2"></i>
+          <p class="text-xs font-bold text-slate-200 truncate" id="viewModalDocName">document.pdf</p>
+        </div>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <div>
+          <p class="text-[11px] text-slate-400 font-medium">ผู้ส่ง / สมาชิก:</p>
+          <p class="font-bold text-slate-800" id="viewModalSubmitter">-</p>
+        </div>
+
+        <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+          <p class="text-[11px] font-bold text-blue-700 mb-0.5">Prompt / คำอธิบาย:</p>
+          <p class="text-slate-700 whitespace-pre-wrap leading-relaxed text-xs" id="viewModalCaption">-</p>
+        </div>
+
+        <div class="text-[10px] text-slate-400 flex items-center justify-between pt-1">
+          <span id="viewModalTime">ส่งเมื่อ: -</span>
+          <span class="text-slate-500 italic">*หากต้องการแก้ไข กรุณาแจ้งวิทยากร</span>
+        </div>
+      </div>
+
+      <button type="button" id="closeViewModalBtn2" class="btn-secondary w-full py-2.5 text-xs mt-4 font-bold">
+        ปิดหน้าต่าง
+      </button>
+    </div>
+  </div>
+
+  <!-- 3. Success Modal -->
+  <div id="successModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="workshop-card max-w-sm w-full p-6 text-center bg-white shadow-2xl relative animate-scale-up">
+      <div class="w-18 h-18 mx-auto mb-2 mascot-float" id="modalMascotSlot"></div>
+      
+      <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner">
+        <i data-lucide="check" class="w-5 h-5 stroke-[3]"></i>
+      </div>
+
+      <h3 class="text-lg font-black text-slate-900 mb-1">ส่งผลงานสำเร็จแล้ว! 🎉</h3>
+      <p class="text-xs text-slate-500 mb-3 font-medium">
+        ผลงานถูกส่งขึ้นสู่จอโปรเจกเตอร์เรียบร้อยแล้ว
+      </p>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-left text-xs mb-4 space-y-1">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">ส่งในนาม:</span>
+          <span class="font-bold text-blue-700" id="successSummaryTeam">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">ไฟล์:</span>
+          <span class="font-semibold text-slate-800 truncate max-w-[170px]" id="successSummaryFile">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">เวลาส่ง:</span>
+          <span class="font-mono text-slate-600" id="successSummaryTime">-</span>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <button type="button" id="submitAnotherBtn" class="btn-primary py-2.5 text-xs">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i>
+          <span>ส่งผลงานเพิ่มอีก 1 ชิ้น</span>
+        </button>
+        <button type="button" id="closeModalBtn" class="btn-secondary w-full py-2 text-xs font-bold">
+          <span>ปิดหน้าต่าง</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/mascots.js"></script>
+  <script src="/js/submit.js"></script>
+</body>
+</html>
