@@ -1,4 +1,4 @@
-// Speaker & Projector Main Screen Controller JS (100% Reliable Mode Switching & Realtime Sync)
+// Speaker & Projector Main Screen Controller JS (Team-by-Team Kanban Board & Live Battle View)
 
 let currentSession = {
   revealSubmissions: false,
@@ -7,7 +7,6 @@ let currentSession = {
   teams: []
 };
 let allSubmissions = [];
-let activeTeamFilter = 'all';
 let currentSlideIndex = 0;
 let sideQrInstance = null;
 let modalQrInstance = null;
@@ -15,11 +14,11 @@ let currentNetworkUrl = window.location.origin + '/join';
 let autoPollTimer = null;
 let isTheaterMode = false;
 
-// 1. Global Reveal Mode Handlers (Directly callable via inline onclick)
+// 1. Global Reveal Mode Handlers
 window.setRevealMode = async function (shouldReveal) {
   currentSession.revealSubmissions = Boolean(shouldReveal);
   renderHeaderAndSession();
-  renderSubmissionsGrid();
+  renderKanbanBoard();
 
   if (shouldReveal && typeof confetti === 'function') {
     confetti({
@@ -41,7 +40,7 @@ window.setRevealMode = async function (shouldReveal) {
     if (data && typeof data.revealSubmissions === 'boolean') {
       currentSession.revealSubmissions = data.revealSubmissions;
       renderHeaderAndSession();
-      renderSubmissionsGrid();
+      renderKanbanBoard();
     }
   } catch (err) {
     console.error('Error toggling reveal mode:', err);
@@ -61,11 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const sidebarMascot = document.getElementById('sidebarMascotSlot');
   if (sidebarMascot && MascotSVGs.cheeringBlob) {
     sidebarMascot.innerHTML = MascotSVGs.cheeringBlob;
-  }
-
-  const emptyMascot = document.getElementById('emptyMascotSlot');
-  if (emptyMascot && MascotSVGs.laptopBlob) {
-    emptyMascot.innerHTML = MascotSVGs.laptopBlob;
   }
 
   if (window.lucide) lucide.createIcons();
@@ -96,8 +90,7 @@ async function fetchAllData() {
     allSubmissions = subsData.submissions || [];
 
     renderHeaderAndSession();
-    renderScoreboard();
-    renderSubmissionsGrid();
+    renderKanbanBoard();
   } catch (err) {
     console.error('Error fetching speaker data:', err);
   } finally {
@@ -129,8 +122,8 @@ function renderQRCodes(url) {
     document.getElementById('sideQrUrl').textContent = url;
     sideQrInstance = new QRCode(sideContainer, {
       text: url,
-      width: 170,
-      height: 170,
+      width: 150,
+      height: 150,
       colorDark: '#0B1B3D',
       colorLight: '#FFFFFF',
       correctLevel: QRCode.CorrectLevel.M
@@ -152,21 +145,19 @@ function renderQRCodes(url) {
   }
 }
 
-// 4. Render Header, Badges & Segmented Control
+// 4. Render Header & Badges
 function renderHeaderAndSession() {
   if (!currentSession) return;
 
   const headerTitle = document.getElementById('headerTitle');
   const headerBadge = document.getElementById('headerBadge');
   const totalCountEl = document.getElementById('headerTotalCount');
-  const filterCountEl = document.getElementById('filterAllCount');
 
   if (headerTitle && currentSession.title) headerTitle.textContent = currentSession.title;
   if (headerBadge && currentSession.badge) headerBadge.textContent = currentSession.badge;
 
   const totalSubs = allSubmissions.length;
   if (totalCountEl) totalCountEl.textContent = `${totalSubs} ผลงาน`;
-  if (filterCountEl) filterCountEl.textContent = totalSubs;
 
   const isRevealed = Boolean(currentSession.revealSubmissions);
   const setBlindBtn = document.getElementById('setBlindModeBtn');
@@ -202,240 +193,229 @@ function renderHeaderAndSession() {
   if (window.lucide) lucide.createIcons();
 }
 
-// 5. Render Team Scoreboard
-function renderScoreboard() {
-  const sideScoreboard = document.getElementById('sideTeamScoreboard');
-  const filterPillsContainer = document.getElementById('teamFilterPills');
-  if (!sideScoreboard || !filterPillsContainer) return;
+// 5. Render Team-by-Team Kanban Board (Multi-Column Swimlanes)
+function renderKanbanBoard() {
+  const container = document.getElementById('kanbanBoardContainer');
+  if (!container) return;
+  container.innerHTML = '';
 
-  sideScoreboard.innerHTML = '';
   const teams = currentSession.teams || [];
-
-  let pillsHtml = `
-    <button type="button" class="filter-pill ${activeTeamFilter === 'all' ? 'active bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} px-3.5 py-1 text-xs font-bold rounded-full transition-all" data-team="all">
-      ทั้งหมด (${allSubmissions.length})
-    </button>
-  `;
-
-  teams.forEach(team => {
-    const teamSubs = allSubmissions.filter(s => s.teamId === team.id);
-    const count = teamSubs.length;
-    const isSelected = activeTeamFilter === team.id;
-
-    pillsHtml += `
-      <button type="button" class="filter-pill ${isSelected ? 'active bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'} px-3.5 py-1 text-xs font-bold rounded-full transition-all" data-team="${escapeHtml(team.id)}">
-        ${escapeHtml(team.name)} (${count})
-      </button>
-    `;
-
-    const item = document.createElement('div');
-    item.className = `p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-50/80 shadow-sm' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100'}`;
-    item.style.borderLeftColor = team.color || '#1E5AF6';
-    item.style.borderLeftWidth = '4px';
-
-    item.innerHTML = `
-      <div class="flex items-center gap-2 min-w-0">
-        <div class="w-6 h-6 rounded-md text-white font-bold flex items-center justify-center text-xs flex-shrink-0 shadow-sm" style="background-color: ${team.color || '#1E5AF6'};">
-          ${team.code || team.name.charAt(0)}
-        </div>
-        <div class="truncate">
-          <p class="text-xs font-bold text-slate-800 truncate">${escapeHtml(team.name)}</p>
-          <p class="text-[10px] text-slate-400 font-medium">${count > 0 ? `ส่งล่าสุด ${formatTime(teamSubs[0].createdAt)}` : 'ยังไม่มีผลงาน'}</p>
-        </div>
-      </div>
-      <div class="text-right flex-shrink-0">
-        <span class="text-sm font-black ${count > 0 ? 'text-blue-600' : 'text-slate-300'}">${count}</span>
-        <span class="text-[10px] text-slate-400 font-medium"> ชิ้น</span>
-      </div>
-    `;
-
-    item.addEventListener('click', () => {
-      setTeamFilter(team.id);
-    });
-
-    sideScoreboard.appendChild(item);
-  });
-
-  filterPillsContainer.innerHTML = pillsHtml;
-
-  filterPillsContainer.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      setTeamFilter(btn.dataset.team);
-    });
-  });
-
-  if (window.lucide) lucide.createIcons();
-}
-
-function setTeamFilter(teamId) {
-  activeTeamFilter = teamId;
-  renderScoreboard();
-  renderSubmissionsGrid();
-}
-
-// 6. Render Submissions Grid (Chronological: Top to Bottom, Newest First)
-function renderSubmissionsGrid() {
-  const grid = document.getElementById('submissionsGrid');
-  const emptyState = document.getElementById('emptyState');
-  if (!grid) return;
-  grid.innerHTML = '';
-
-  let filtered = allSubmissions;
-  if (activeTeamFilter !== 'all') {
-    filtered = allSubmissions.filter(s => s.teamId === activeTeamFilter);
-  }
-
-  if (filtered.length === 0) {
-    if (emptyState) emptyState.classList.remove('hidden');
-    return;
-  }
-  if (emptyState) emptyState.classList.add('hidden');
-
   const isRevealed = Boolean(currentSession && currentSession.revealSubmissions);
 
-  filtered.forEach((sub, idx) => {
-    const card = document.createElement('div');
-    card.className = 'workshop-card submission-card overflow-hidden bg-white border border-slate-200 flex flex-col justify-between';
+  // Dynamic grid column class based on team count
+  if (teams.length === 1) container.className = 'grid grid-cols-1 gap-4 items-start w-full';
+  else if (teams.length === 2) container.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 items-start w-full';
+  else if (teams.length === 3) container.className = 'grid grid-cols-1 md:grid-cols-3 gap-4 items-start w-full';
+  else container.className = 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start w-full';
 
-    if (!isRevealed) {
-      // 🔒 Blind / Contest Mode Card with Cute Mascot Animation
-      card.innerHTML = `
-        <div class="mystery-blur h-48 flex flex-col items-center justify-center p-3 text-center text-white relative cursor-pointer" title="คลิกเพื่อดูรายละเอียด">
-          <div class="mb-1">
-            ${MascotSVGs.mysteryBlob}
+  teams.forEach(team => {
+    // Filter submissions for this specific team (Newest First)
+    const teamSubmissions = allSubmissions.filter(s => s.teamId === team.id);
+    const count = teamSubmissions.length;
+    const teamColor = team.color || '#1E5AF6';
+    const teamBg = team.bg || '#EFF6FF';
+
+    const col = document.createElement('div');
+    col.className = 'kanban-team-column overflow-hidden flex flex-col bg-white rounded-2xl border-2 shadow-sm transition-all';
+    col.style.borderColor = teamColor + '40';
+
+    // 1. Column Header (Team Name + Color Bar + Live Count Badge)
+    const headerHtml = `
+      <div class="kanban-column-header flex items-center justify-between p-3.5 border-b-2" style="background-color: ${teamBg}; border-color: ${teamColor}30;">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl font-black text-sm text-white flex items-center justify-center flex-shrink-0 shadow-md" style="background-color: ${teamColor};">
+            ${team.code || team.name.charAt(0)}
           </div>
-          <p class="text-xs font-black uppercase tracking-wider text-amber-300">ส่งผลงานแล้ว ✨</p>
-          <p class="text-[10px] text-blue-100">ซ่อนผลงานอยู่ระหว่างแข่งขัน</p>
+          <div class="truncate">
+            <h3 class="text-xs sm:text-sm font-black text-slate-900 truncate">${escapeHtml(team.name)}</h3>
+            <p class="text-[10px] text-slate-500 font-medium">${count > 0 ? `ล่าสุด ${formatTime(teamSubmissions[0].createdAt)}` : 'ยังไม่มีผลงาน'}</p>
+          </div>
         </div>
+        <div class="flex-shrink-0">
+          <span class="text-xs font-black px-2.5 py-1 rounded-full text-white shadow-sm flex items-center gap-1" style="background-color: ${teamColor};">
+            <span>${count}</span>
+            <span class="text-[10px] font-medium opacity-90">ชิ้น</span>
+          </span>
+        </div>
+      </div>
+    `;
 
-        <div class="p-3.5 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="px-2.5 py-0.5 rounded-md text-xs font-black text-white shadow-sm" style="background-color: ${sub.teamColor || '#1E5AF6'};">
-              ${escapeHtml(sub.teamName)}
-            </span>
-            <span class="text-xs text-slate-400 font-mono font-medium">${formatTime(sub.createdAt)}</span>
+    // 2. Cards Body Container (Vertically Stacked)
+    const cardsBody = document.createElement('div');
+    cardsBody.className = 'p-3 space-y-3 flex-1 flex flex-col overflow-y-auto max-h-[75vh]';
+
+    if (count === 0) {
+      // Empty slot state
+      cardsBody.innerHTML = `
+        <div class="p-8 text-center border-2 border-dashed rounded-xl flex-1 flex flex-col items-center justify-center" style="border-color: ${teamColor}30; background-color: ${teamBg}20;">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 mb-2" style="background-color: ${teamBg}; color: ${teamColor};">
+            <i data-lucide="clock-3" class="w-5 h-5"></i>
           </div>
-          <h4 class="text-sm font-bold text-slate-800 truncate">${escapeHtml(sub.title || 'ผลงานประจำทีม')}</h4>
-          <div class="flex items-center justify-between text-xs text-slate-500 font-medium">
-            <span>โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
-            <button type="button" class="speaker-edit-btn text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50" data-id="${sub.id}" title="แก้ไขข้อมูล">
-              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
+          <p class="text-xs font-bold text-slate-600">กำลังรอผลงาน ⏳</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">สมาชิกทีมสามารถสแกนส่งงานได้เลย</p>
         </div>
       `;
-
-      card.querySelector('.mystery-blur').addEventListener('click', () => openPresentation(filtered, idx));
-      card.querySelector('.speaker-edit-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openSpeakerEditModal(sub.id);
-      });
     } else {
-      // 👁️ Showcase Mode Card (Image First)
-      const isImage = sub.fileType === 'image';
-      card.innerHTML = `
-        <div class="relative bg-slate-900 h-48 overflow-hidden group cursor-pointer thumbnail-click-area">
-          ${isImage ? `
-            <img src="${sub.fileUrl}" alt="${escapeHtml(sub.title)}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
-          ` : `
-            <div class="w-full h-full flex flex-col items-center justify-center text-white p-3">
-              <i data-lucide="file-text" class="w-12 h-12 text-blue-400 mb-1"></i>
-              <span class="text-xs font-bold truncate max-w-full">${escapeHtml(sub.originalname)}</span>
+      teamSubmissions.forEach((sub, subIdx) => {
+        const card = document.createElement('div');
+        card.className = 'workshop-card submission-card overflow-hidden bg-white border border-slate-200 rounded-xl flex flex-col justify-between shadow-sm';
+
+        if (!isRevealed) {
+          // 🔒 Blind / Contest Mode Card
+          card.innerHTML = `
+            <div class="mystery-blur h-40 flex flex-col items-center justify-center p-3 text-center text-white relative cursor-pointer" title="คลิกเพื่อดูรายละเอียด">
+              <div class="mb-1 scale-90">
+                ${MascotSVGs.mysteryBlob}
+              </div>
+              <p class="text-[11px] font-black uppercase tracking-wider text-amber-300">ส่งผลงานแล้ว ✨</p>
+              <p class="text-[9px] text-blue-100 font-mono">ชิ้นที่ ${count - subIdx}</p>
             </div>
-          `}
-          
-          <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2.5">
-            <button type="button" class="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg" title="ขยายเต็มจอ">
-              <i data-lucide="maximize-2" class="w-4 h-4"></i>
-            </button>
-            <a href="${sub.fileUrl}" download class="p-2.5 bg-white/20 hover:bg-white/30 text-white rounded-full shadow-lg" title="ดาวน์โหลด">
-              <i data-lucide="download" class="w-4 h-4"></i>
-            </a>
-          </div>
 
-          <div class="absolute top-2.5 left-2.5">
-            <span class="px-2.5 py-0.5 rounded-md text-xs font-black text-white shadow-md" style="background-color: ${sub.teamColor || '#1E5AF6'};">
-              ${escapeHtml(sub.teamName)}
-            </span>
-          </div>
-        </div>
-
-        <div class="p-3.5 space-y-1.5 flex-1 flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between text-xs text-slate-400 mb-0.5 font-medium">
-              <span>โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
-              <span class="font-mono">${formatTime(sub.createdAt)}</span>
+            <div class="p-3 space-y-1.5 bg-white">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-extrabold text-slate-800 truncate">โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
+                <span class="text-slate-400 font-mono text-[10px]">${formatTime(sub.createdAt)}</span>
+              </div>
+              <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+                <span class="text-[10px] font-bold text-slate-400">โหมดแข่งขัน</span>
+                <button type="button" class="speaker-edit-btn text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50" data-id="${sub.id}" title="แก้ไขข้อมูล">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
             </div>
-            <h4 class="text-sm font-extrabold text-slate-900 leading-snug line-clamp-1">${escapeHtml(sub.title || 'ไม่มีชื่อ')}</h4>
-            ${sub.caption ? `<p class="text-xs text-slate-600 mt-1 line-clamp-2">${escapeHtml(sub.caption)}</p>` : ''}
-          </div>
+          `;
 
-          <div class="pt-2.5 mt-1 border-t border-slate-100 flex items-center justify-between">
-            <button type="button" class="like-btn text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1.5 p-1 rounded-lg hover:bg-rose-50 transition-colors" data-id="${sub.id}">
-              <i data-lucide="heart" class="w-4 h-4 ${sub.likes > 0 ? 'fill-current' : ''}"></i>
-              <span>${sub.likes || 0}</span>
-            </button>
+          card.querySelector('.mystery-blur').addEventListener('click', () => {
+            const fullIdx = allSubmissions.findIndex(s => s.id === sub.id);
+            openPresentation(allSubmissions, fullIdx >= 0 ? fullIdx : 0);
+          });
 
-            <div class="flex items-center gap-1">
-              <button type="button" class="open-slide-btn p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="นำเสนองาน">
-                <i data-lucide="presentation" class="w-4 h-4"></i>
-              </button>
-              <button type="button" class="speaker-edit-btn p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" data-id="${sub.id}" title="แก้ไขข้อมูล">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-              </button>
-              <button type="button" class="delete-sub-btn p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" data-id="${sub.id}" title="ลบผลงานนี้">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
+          card.querySelector('.speaker-edit-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openSpeakerEditModal(sub.id);
+          });
+        } else {
+          // 👁️ Showcase Mode Card (Image Thumbnail)
+          const isImage = sub.fileType === 'image';
+          card.innerHTML = `
+            <div class="relative bg-slate-900 h-40 overflow-hidden group cursor-pointer thumbnail-click-area">
+              ${isImage ? `
+                <img src="${sub.fileUrl}" alt="${escapeHtml(sub.title)}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+              ` : `
+                <div class="w-full h-full flex flex-col items-center justify-center text-white p-3">
+                  <i data-lucide="file-text" class="w-10 h-10 text-blue-400 mb-1"></i>
+                  <span class="text-xs font-bold truncate max-w-full">${escapeHtml(sub.originalname)}</span>
+                </div>
+              `}
+              
+              <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button type="button" class="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg" title="ขยายเต็มจอ">
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+                </button>
+                <a href="${sub.fileUrl}" download class="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full shadow-lg" title="ดาวน์โหลด">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                </a>
+              </div>
+
+              <div class="absolute top-2 left-2">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-black text-white shadow-md" style="background-color: ${teamColor};">
+                  #${count - subIdx}
+                </span>
+              </div>
             </div>
-          </div>
-        </div>
-      `;
 
-      const thumb = card.querySelector('.thumbnail-click-area');
-      if (thumb) thumb.addEventListener('click', () => openPresentation(filtered, idx));
+            <div class="p-3 space-y-1 bg-white flex-1 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                  <span class="truncate">โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
+                  <span class="font-mono">${formatTime(sub.createdAt)}</span>
+                </div>
+                <h4 class="text-xs font-black text-slate-900 leading-snug line-clamp-1">${escapeHtml(sub.title || 'ไม่มีชื่อ')}</h4>
+                ${sub.caption ? `<p class="text-[11px] text-slate-600 mt-0.5 line-clamp-2">${escapeHtml(sub.caption)}</p>` : ''}
+              </div>
 
-      const openSlideBtn = card.querySelector('.open-slide-btn');
-      if (openSlideBtn) openSlideBtn.addEventListener('click', () => openPresentation(filtered, idx));
+              <div class="pt-2 mt-1 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" class="like-btn text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1 p-0.5 rounded-lg hover:bg-rose-50 transition-colors" data-id="${sub.id}">
+                  <i data-lucide="heart" class="w-3.5 h-3.5 ${sub.likes > 0 ? 'fill-current' : ''}"></i>
+                  <span>${sub.likes || 0}</span>
+                </button>
 
-      const editBtn = card.querySelector('.speaker-edit-btn');
-      if (editBtn) {
-        editBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          openSpeakerEditModal(sub.id);
-        });
-      }
+                <div class="flex items-center gap-1">
+                  <button type="button" class="open-slide-btn p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="นำเสนองาน">
+                    <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button type="button" class="speaker-edit-btn p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" data-id="${sub.id}" title="แก้ไขข้อมูล">
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button type="button" class="delete-sub-btn p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors" data-id="${sub.id}" title="ลบผลงานนี้">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
 
-      const likeBtn = card.querySelector('.like-btn');
-      if (likeBtn) {
-        likeBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          likeSubmission(sub.id);
-        });
-      }
+          const thumb = card.querySelector('.thumbnail-click-area');
+          if (thumb) {
+            thumb.addEventListener('click', () => {
+              const fullIdx = allSubmissions.findIndex(s => s.id === sub.id);
+              openPresentation(allSubmissions, fullIdx >= 0 ? fullIdx : 0);
+            });
+          }
 
-      const deleteBtn = card.querySelector('.delete-sub-btn');
-      if (deleteBtn) {
-        deleteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          deleteSubmission(sub.id);
-        });
-      }
+          const openSlideBtn = card.querySelector('.open-slide-btn');
+          if (openSlideBtn) {
+            openSlideBtn.addEventListener('click', () => {
+              const fullIdx = allSubmissions.findIndex(s => s.id === sub.id);
+              openPresentation(allSubmissions, fullIdx >= 0 ? fullIdx : 0);
+            });
+          }
+
+          const editBtn = card.querySelector('.speaker-edit-btn');
+          if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openSpeakerEditModal(sub.id);
+            });
+          }
+
+          const likeBtn = card.querySelector('.like-btn');
+          if (likeBtn) {
+            likeBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              likeSubmission(sub.id);
+            });
+          }
+
+          const deleteBtn = card.querySelector('.delete-sub-btn');
+          if (deleteBtn) {
+            deleteBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              deleteSubmission(sub.id);
+            });
+          }
+        }
+
+        cardsBody.appendChild(card);
+      });
     }
 
-    grid.appendChild(card);
+    col.innerHTML = headerHtml;
+    col.appendChild(cardsBody);
+    container.appendChild(col);
   });
 
   if (window.lucide) lucide.createIcons();
 }
 
-// 7. Like Submission
+// 6. Like Submission
 async function likeSubmission(id) {
   const sub = allSubmissions.find(s => s.id === id);
   if (sub) {
     sub.likes = (sub.likes || 0) + 1;
     const likeCountEl = document.getElementById('presentationLikeCount');
     if (likeCountEl) likeCountEl.textContent = `${sub.likes} ถูกใจ`;
-    renderSubmissionsGrid();
+    renderKanbanBoard();
   }
 
   try {
@@ -450,7 +430,7 @@ async function likeSubmission(id) {
   }
 }
 
-// 8. Delete Submission
+// 7. Delete Submission
 async function deleteSubmission(id) {
   if (!confirm('คุณต้องการลบผลงานนี้ใช่หรือไม่?')) return;
   try {
@@ -463,7 +443,7 @@ async function deleteSubmission(id) {
   }
 }
 
-// 9. Fullscreen Presentation Lightbox
+// 8. Fullscreen Presentation Lightbox
 let activePresentationList = [];
 
 function openPresentation(list, index) {
@@ -556,7 +536,7 @@ function toggleTheaterMode() {
   }
 }
 
-// 10. Speaker Edit Modal Logic
+// 9. Speaker Edit Modal Logic
 async function openSpeakerEditModal(submissionId) {
   try {
     const res = await fetch(`/api/submissions/${submissionId}?view=speaker`);
@@ -630,7 +610,7 @@ async function handleSpeakerEditSubmit(e) {
   }
 }
 
-// 11. Copy To Clipboard
+// 10. Copy To Clipboard
 function copyToClipboard(text) {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(text).then(() => {
@@ -660,7 +640,7 @@ function fallbackCopy(text) {
   document.body.removeChild(textArea);
 }
 
-// 12. Setup Event Listeners
+// 11. Setup Event Listeners
 function setupEventListeners() {
   const openBigQrBtn = document.getElementById('openBigQrBtn');
   const sideQrBox = document.getElementById('sideQrBox');
@@ -792,7 +772,7 @@ function setupEventListeners() {
   if (addTeamSettingBtn) addTeamSettingBtn.addEventListener('click', addTeamInputRow);
 }
 
-// 13. Settings Logic
+// 12. Settings Logic
 function openSettingsModal() {
   if (!currentSession) return;
   document.getElementById('settingTitle').value = currentSession.title || '';
@@ -881,7 +861,7 @@ async function handleSaveSettings(e) {
   }
 }
 
-// 14. Auto Poll with Reveal State Sync
+// 13. Auto Poll with Kanban Re-render
 function startAutoPoll() {
   if (autoPollTimer) clearInterval(autoPollTimer);
   autoPollTimer = setInterval(() => {
@@ -901,8 +881,7 @@ function startAutoPoll() {
           currentSession.revealSubmissions = Boolean(data.revealSubmissions);
           allSubmissions = data.submissions || [];
           renderHeaderAndSession();
-          renderScoreboard();
-          renderSubmissionsGrid();
+          renderKanbanBoard();
         }
       })
       .catch(() => {});
