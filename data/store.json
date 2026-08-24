@@ -1,6 +1,6 @@
 {
   "session": {
-    "id": "sess_1787545856469",
+    "id": "sess_1787555067095",
     "title": "AI Workshop: มาทำงานร่วมกับ ChatGPT กัน",
     "subtitle": "พื้นฐาน การใช้งาน และแนวคิดสำคัญ สำหรับทีมงานและผู้บริหาร",
     "badge": "AI WORKSHOP | สำหรับองค์กร",
@@ -40,5 +40,82 @@
     ],
     "createdAt": "2026-08-23T17:30:24.411Z"
   },
-  "submissions": []
+  "submissions": [
+    {
+      "id": "sub_1787555067123_d2jqew",
+      "teamId": "team-a",
+      "teamName": "ทีม A (Alpha)",
+      "teamColor": "#1E5AF6",
+      "teamBg": "#EFF6FF",
+      "submitterName": "สมชาย & แพรว (ทีม A)",
+      "title": "banner_chatgpt.png",
+      "caption": "Prompt: Minimalist clean corporate AI mascot with laptop and coffee in a modern studio.",
+      "filename": "1787555067117-138156-banner_chatgpt.png",
+      "originalname": "banner_chatgpt.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 734621,
+      "fileUrl": "/uploads/1787555067117-138156-banner_chatgpt.png",
+      "likes": 0,
+      "createdAt": "2026-08-24T07:04:27.123Z",
+      "updatedAt": null
+    },
+    {
+      "id": "sub_1787555067134_7u9661",
+      "teamId": "team-b",
+      "teamName": "ทีม B (Beta)",
+      "teamColor": "#8B5CF6",
+      "teamBg": "#F5F3FF",
+      "submitterName": "ต้น & นัท (ทีม B)",
+      "title": "banner_ai_usage.png",
+      "caption": "Prompt: Cute friendly blue blob explaining prompt engineering concepts on whiteboard.",
+      "filename": "1787555067132-492759-banner_ai_usage.png",
+      "originalname": "banner_ai_usage.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 912454,
+      "fileUrl": "/uploads/1787555067132-492759-banner_ai_usage.png",
+      "likes": 0,
+      "createdAt": "2026-08-24T07:04:27.134Z",
+      "updatedAt": null
+    },
+    {
+      "id": "sub_1787555067144_yylj33",
+      "teamId": "team-c",
+      "teamName": "ทีม C (Gamma)",
+      "teamColor": "#10B981",
+      "teamBg": "#ECFDF5",
+      "submitterName": "เมย์ & วิน (ทีม C)",
+      "title": "banner_chatgpt.png",
+      "caption": "Prompt: Futuristic AI workflow diagram with cheerful robotic assistant.",
+      "filename": "1787555067142-475702-banner_chatgpt.png",
+      "originalname": "banner_chatgpt.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 734621,
+      "fileUrl": "/uploads/1787555067142-475702-banner_chatgpt.png",
+      "likes": 0,
+      "createdAt": "2026-08-24T07:04:27.144Z",
+      "updatedAt": null
+    },
+    {
+      "id": "sub_1787555067153_89cmgo",
+      "teamId": "team-d",
+      "teamName": "ทีม D (Delta)",
+      "teamColor": "#F59E0B",
+      "teamBg": "#FFFBEB",
+      "submitterName": "กอล์ฟ & โบว์ (ทีม D)",
+      "title": "banner_ai_usage.png",
+      "caption": "Prompt: Vibrant energetic AI mascot celebrating victory with confetti and fireworks.",
+      "filename": "1787555067151-657934-banner_ai_usage.png",
+      "originalname": "banner_ai_usage.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 912454,
+      "fileUrl": "/uploads/1787555067151-657934-banner_ai_usage.png",
+      "likes": 1,
+      "createdAt": "2026-08-24T07:04:27.153Z",
+      "updatedAt": null
+    }
+  ]
 }
