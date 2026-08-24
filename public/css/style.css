@@ -93,51 +93,47 @@ body {
   box-shadow: 0 16px 32px -6px rgba(30, 90, 246, 0.12), 0 6px 14px -3px rgba(11, 27, 61, 0.05);
 }
 
-/* Horizontal Drag-to-Scroll Kanban Stage Container */
-.kanban-drag-container {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-  gap: 1.25rem;
-  overflow-x: auto;
-  padding-bottom: 1.5rem;
-  cursor: grab;
-  user-select: none;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  width: 100%;
-}
-
-.kanban-drag-container.active-dragging {
-  cursor: grabbing !important;
-  scroll-behavior: auto !important;
-}
-
-/* Individual Team Kanban Column */
-.kanban-team-column {
+/* Team Swimlane Row (One Row Per Team) */
+.team-swimlane-row {
   background: #FFFFFF;
   border-radius: 1.25rem;
-  border: 1.5px solid #E2E8F0;
-  box-shadow: 0 8px 20px -4px rgba(30, 90, 246, 0.06);
+  border: 2px solid #E2E8F0;
+  box-shadow: 0 6px 18px -3px rgba(30, 90, 246, 0.06);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.team-swimlane-row:hover {
+  box-shadow: 0 10px 24px -4px rgba(30, 90, 246, 0.1);
+}
+
+.swimlane-cards-track {
   display: flex;
-  flex-direction: column;
-  min-height: 520px;
-  width: 340px;
-  min-width: 320px;
-  max-width: 380px;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.85rem;
+  overflow-x: auto;
+  padding: 0.75rem;
+  scroll-behavior: smooth;
+}
+
+.swimlane-cards-track::-webkit-scrollbar {
+  height: 6px;
+}
+.swimlane-cards-track::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+.swimlane-card-item {
+  width: 220px;
   flex-shrink: 0;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.kanban-team-column:hover {
-  box-shadow: 0 14px 30px -4px rgba(30, 90, 246, 0.12);
-}
-
-.kanban-column-header {
-  padding: 0.85rem 1rem;
-  border-bottom: 1.5px solid #F1F5F9;
-  border-top-left-radius: 1.25rem;
-  border-top-right-radius: 1.25rem;
+@media (min-width: 640px) {
+  .swimlane-card-item {
+    width: 250px;
+  }
 }
 
 /* Segmented Control for Modes */
@@ -200,7 +196,7 @@ body {
   transform: scale(1.005);
 }
 
-/* Floating Mascot Animation */
+/* Floating Mascot Animation with Squash & Stretch */
 @keyframes floatJelly {
   0%, 100% {
     transform: translateY(0px) rotate(0deg) scale(1, 1);
@@ -320,14 +316,14 @@ body {
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
-  height: 8px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #F1F5F9;
 }
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
-  border-radius: 9999px;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;

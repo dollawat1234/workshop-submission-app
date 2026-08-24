@@ -78,6 +78,25 @@
       "likes": 0,
       "createdAt": "2026-08-24T07:49:41.875Z",
       "updatedAt": null
+    },
+    {
+      "id": "sub_1787557967545_l6o5jo",
+      "teamId": "team-c",
+      "teamName": "ทีม C (Gamma)",
+      "teamColor": "#10B981",
+      "teamBg": "#ECFDF5",
+      "submitterName": "เมย์ & วิน (ทีม C)",
+      "title": "banner_chatgpt.png",
+      "caption": "Tested on Team Swimlane Row layout.",
+      "filename": "1787557966823-328241-banner_chatgpt.png",
+      "originalname": "banner_chatgpt.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 734621,
+      "fileUrl": "/uploads/1787557966823-328241-banner_chatgpt.png",
+      "likes": 0,
+      "createdAt": "2026-08-24T07:52:47.545Z",
+      "updatedAt": null
     }
   ]
 }
