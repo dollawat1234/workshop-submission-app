@@ -7,7 +7,7 @@
     "topic": "ภารกิจ: ใช้ AI ยังไง? ส่งภาพผลงานและไอเดียการประยุกต์ใช้",
     "description": "ให้แต่ละทีมออกแบบหรือสร้างสรรค์ผลงานด้วย AI แล้วอัปโหลดรูปภาพผลงานเพื่อร่วมแข่งขันและนำเสนอ",
     "maxFileSizeMB": 25,
-    "revealSubmissions": false,
+    "revealSubmissions": true,
     "teams": [
       {
         "id": "team-a",
@@ -96,6 +96,25 @@
       "fileUrl": "/uploads/1787557966823-328241-banner_chatgpt.png",
       "likes": 0,
       "createdAt": "2026-08-24T07:52:47.545Z",
+      "updatedAt": null
+    },
+    {
+      "id": "sub_1787558731991_tfqr62",
+      "teamId": "team-d",
+      "teamName": "ทีม D (Delta)",
+      "teamColor": "#F59E0B",
+      "teamBg": "#FFFBEB",
+      "submitterName": "สมาชิกในทีม",
+      "title": "IMG_9901.jpeg",
+      "caption": "Test แมว",
+      "filename": "1787558730522-656036-IMG_9901.jpeg",
+      "originalname": "IMG_9901.jpeg",
+      "mimetype": "image/jpeg",
+      "fileType": "image",
+      "size": 3547947,
+      "fileUrl": "/uploads/1787558730522-656036-IMG_9901.jpeg",
+      "likes": 0,
+      "createdAt": "2026-08-24T08:05:31.991Z",
       "updatedAt": null
     }
   ]

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>เกมปลูกต้นไม้เก็บแอปเปิ้ล | AI Tree Farmer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-amber-50 flex items-center justify-center min-h-screen p-4">
+  <div class="max-w-md w-full bg-white p-6 rounded-3xl shadow-xl border-2 border-amber-200 text-center space-y-4">
+    <h1 class="text-2xl font-black text-amber-900">🌳 AI Tree Farm Game</h1>
+    <p class="text-xs text-slate-500">ตัวอย่างโค้ดตั้งต้น ให้ AI ช่วยเขียนระบบรดน้ำ ปลูกต้นไม้ เก็บแอปเปิ้ล แลกทองคำ</p>
+    
+    <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-200 flex flex-col items-center justify-center min-h-[220px]">
+      <img id="treeDisplay" src="tree_stage1_seedling.png" alt="Tree" class="w-32 h-32 object-contain transition-all">
+      <div class="mt-3 w-full bg-emerald-200 rounded-full h-3 overflow-hidden">
+        <div id="waterBar" class="bg-blue-500 h-3 rounded-full transition-all" style="width: 20%;"></div>
+      </div>
+      <p class="text-[11px] font-bold text-emerald-800 mt-1" id="growthLabel">ระดับการเติบโต: ต้นกล้า (20%)</p>
+    </div>
+
+    <div class="flex items-center justify-around bg-slate-50 p-3 rounded-xl border">
+      <div class="flex items-center gap-1.5 font-bold text-rose-600 text-sm">
+        <img src="apple_fruit.png" class="w-6 h-6">
+        <span id="appleCount">0 ผล</span>
+      </div>
+      <div class="flex items-center gap-1.5 font-bold text-amber-600 text-sm">
+        <img src="gold_coin.png" class="w-6 h-6">
+        <span id="goldCount">0 เหรียญ</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <button id="waterBtn" class="py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs">
+        💧 รดน้ำต้นไม้
+      </button>
+      <button id="harvestBtn" class="py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs">
+        🍎 เก็บผลผลิต
+      </button>
+    </div>
+  </div>
+</body>
+</html>

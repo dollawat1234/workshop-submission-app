@@ -44,7 +44,6 @@
           
           <p class="text-xs text-blue-100 font-medium leading-relaxed" id="sessionSubtitle">
             อัปโหลดรูปภาพหรือไฟล์ผลงานขึ้นสู่จอ
-          </p>
         </div>
 
         <div class="w-24 sm:w-28 flex-shrink-0 mascot-float relative z-10" id="headerMascotSlot">
@@ -52,6 +51,22 @@
         </div>
       </div>
     </header>
+
+    <!-- Quick Download Workshop Files Banner -->
+    <a href="/files" target="_blank" class="flex items-center justify-between p-3 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-900 shadow-sm hover:bg-amber-100 transition-all">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-amber-200 text-amber-900 flex items-center justify-center flex-shrink-0 font-bold">
+          <i data-lucide="folder-down" class="w-4 h-4 text-amber-800"></i>
+        </div>
+        <div class="truncate text-left">
+          <p class="text-xs font-black text-amber-950 truncate">ดาวน์โหลดไฟล์ Workshop</p>
+          <p class="text-[10px] text-amber-700 font-medium truncate">Excel ร้านเครป • สไลด์บ้านทรายทอง • เกมปลูกต้นไม้</p>
+        </div>
+      </div>
+      <span class="text-[11px] font-black text-amber-800 bg-white px-2.5 py-1 rounded-lg border border-amber-200 flex-shrink-0 ml-1">
+        เปิดไฟล์ ➔
+      </span>
+    </a>
 
     <!-- Main Submission Form (Dynamically Adapts Theme Color to Selected Team) -->
     <form id="submissionForm" class="workshop-card p-4 sm:p-5 space-y-5 bg-white border-2 border-slate-200 shadow-sm transition-all duration-300">

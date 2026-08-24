@@ -208,6 +208,10 @@ app.get(['/join', '/submit', '/p'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'join.html'));
 });
 
+app.get(['/files', '/materials', '/workshop-files', '/download'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'files.html'));
+});
+
 // ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>คลังไฟล์ & เอกสารเวิร์กชอป | AI Workshop Materials</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- QRCode.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <!-- Custom Stylesheet with Cache-Busting -->
+  <link rel="stylesheet" href="/css/style.css?v=1787514000">
+</head>
+<body class="bg-[#FAF8F5] text-slate-900 min-h-screen flex flex-col pb-16">
+
+  <!-- Slim Top Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm px-4 py-2.5">
+    <div class="max-w-[1500px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <div class="flex items-center gap-2.5">
+        <a href="/" class="pill-badge text-xs py-1 px-3 hover:opacity-90 transition-opacity flex items-center gap-1">
+          <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+          <span>กลับหน้าหลักวิทยากร</span>
+        </a>
+        <h1 class="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-1.5">
+          <i data-lucide="folder-down" class="w-4 h-4 text-blue-600"></i>
+          <span>คลังไฟล์ประกอบการอบรม AI Workshop (3 หัวข้อ)</span>
+        </h1>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <a href="/join" target="_blank" class="btn-secondary text-xs py-1.5 px-3 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 font-bold flex items-center gap-1.5">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>หน้าส่งงาน (/join)</span>
+        </a>
+        <button type="button" id="openBigQrBtn" class="btn-primary text-xs py-1.5 px-3.5 font-bold flex items-center gap-1.5 w-auto">
+          <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+          <span>ขยาย QR Code หน้าดาวน์โหลด</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-[1500px] w-full mx-auto px-4 py-6 space-y-6 flex-1">
+    
+    <!-- Hero Banner Card with Mascot and Dedicated QR Code -->
+    <div class="header-blue-card p-6 sm:p-8 rounded-3xl relative overflow-hidden shadow-xl text-white border border-blue-400/30 flex flex-col lg:flex-row items-center justify-between gap-6">
+      
+      <!-- Left Hero Text -->
+      <div class="space-y-3 max-w-2xl relative z-10">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-block bg-white/20 text-white border border-white/30 backdrop-blur-md px-3 py-1 rounded-full text-xs font-black tracking-wide">
+            AI WORKSHOP STARTER PACK
+          </span>
+          <span class="inline-block bg-amber-400 text-slate-950 px-2.5 py-1 rounded-full text-xs font-black shadow-sm">
+            ดาวน์โหลดฟรี 100%
+          </span>
+        </div>
+
+        <h2 class="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow-sm">
+          ดาวน์โหลดไฟล์และเอกสารตั้งต้นสำหรับการทำ Workshop
+        </h2>
+
+        <p class="text-xs sm:text-sm text-blue-100 font-medium leading-relaxed">
+          รวมไฟล์ตัวอย่างสมจริงทั้ง 3 เรื่อง: ยอดขาย Excel ร้านเครป BTS, โครงสร้างสไลด์ตัวละครบ้านทรายทอง, และ Asset สร้างเกมปลูกต้นไม้ พร้อมตัวอย่าง Prompt สั่งงาน AI ครบถ้วน
+        </p>
+
+        <div class="pt-2 flex flex-wrap items-center gap-3">
+          <a href="/materials/ai_workshop_all_materials.zip" download class="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs sm:text-sm font-black shadow-lg transition-all transform hover:-translate-y-0.5">
+            <i data-lucide="archive" class="w-4 h-4"></i>
+            <span>ดาวน์โหลดไฟล์รวมทั้งหมด 3 หัวข้อ (Master ZIP - 145 KB)</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Right Dedicated QR Code Box for this Download Page -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl border-2 border-white/40 shadow-2xl text-slate-900 text-center flex-shrink-0 relative z-10 w-full sm:w-auto max-w-xs">
+        <div class="inline-flex items-center gap-1.5 text-[11px] font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full mb-2.5 border border-blue-100">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>สแกนเพื่อเปิดหน้าดาวน์โหลดนี้</span>
+        </div>
+
+        <div class="bg-white p-2 rounded-xl border border-slate-200 inline-block shadow-inner mb-2 cursor-pointer hover:border-blue-500 transition-all" id="pageQrClickBox" title="คลิกเพื่อขยาย QR จอใหญ่">
+          <div id="pageQrContainer" class="flex items-center justify-center min-w-[160px] min-h-[160px]">
+            <!-- Injected QR Code -->
+          </div>
+        </div>
+
+        <p class="text-xs font-mono font-bold text-blue-700 break-all select-all mb-1" id="pageQrUrl">
+          https://.../files
+        </p>
+
+        <button type="button" id="copyPageUrlBtn" class="text-[11px] font-bold text-slate-500 hover:text-blue-600 inline-flex items-center gap-1 mt-1 transition-colors">
+          <i data-lucide="copy" class="w-3 h-3"></i>
+          <span>คัดลอกลิงก์หน้าดาวน์โหลด</span>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- 3 Workshop Topics Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+
+      <!-- ========================================== -->
+      <!-- TOPIC 1: EXCEL BTS CREPE SALES -->
+      <!-- ========================================== -->
+      <div class="workshop-card bg-white p-5 rounded-3xl border-2 border-emerald-100 shadow-sm flex flex-col justify-between space-y-4 hover:border-emerald-300 transition-all">
+        <div class="space-y-3">
+          <!-- Topic Header -->
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-emerald-100 text-emerald-800 mb-1">
+                TOPIC 1 • EXCEL & DATA AI
+              </span>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                1. รวมไฟล์ Excel ยอดขายร้านเครปบน BTS
+              </h3>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-inner">
+              <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            ไฟล์ข้อมูลจำลองของร้าน <b>"BTS Crepe Express"</b> บนสถานีรถไฟฟ้า 5 สาขา (สยาม, อโศก, หมอชิต, ช่องนนทรี, อ่อนนุช) บันทึกรายบิล POS 7 วัน มีเมนู ไส้คาว/หวาน ท็อปปิ้ง ต้นทุน และกำไร
+          </p>
+
+          <!-- Files List -->
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1.5 text-xs">
+            <p class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+              <i data-lucide="folder" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>ไฟล์ที่มีในแพ็กเกจ:</span>
+            </p>
+            <ul class="space-y-1 text-[11px] text-slate-600 font-medium">
+              <li class="flex items-center justify-between">
+                <span class="truncate">📊 <b>bts_crepe_master_consolidation.xlsx</b> (ไฟล์รวม 5 สาขา)</span>
+                <a href="/materials/excel-crepe/bts_crepe_master_consolidation.xlsx" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+              <li class="flex items-center justify-between">
+                <span class="truncate">📄 <b>bts_crepe_sales_siam.xlsx</b> (สาขาสยาม)</span>
+                <a href="/materials/excel-crepe/bts_crepe_sales_siam.xlsx" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+              <li class="flex items-center justify-between">
+                <span class="truncate">📄 <b>bts_crepe_sales_asok.xlsx</b> (สาขาอโศก)</span>
+                <a href="/materials/excel-crepe/bts_crepe_sales_asok.xlsx" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+              <li class="flex items-center justify-between">
+                <span class="truncate">📄 <b>bts_crepe_sales_mochit.xlsx</b> (สาขาหมอชิต)</span>
+                <a href="/materials/excel-crepe/bts_crepe_sales_mochit.xlsx" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+              <li class="flex items-center justify-between">
+                <span class="truncate">📝 <b>README_โจทย์รวมไฟล์_Excel_ร้านเครป.txt</b></span>
+                <a href="/materials/excel-crepe/README_โจทย์รวมไฟล์_Excel_ร้านเครป.txt" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Prompt Cheat Sheet Box -->
+          <div class="bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200 text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-emerald-900 text-[11px] flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i> ตัวอย่าง Prompt สั่งงาน AI:
+              </span>
+              <button type="button" onclick="copyPrompt('prompt1')" class="text-[10px] font-bold text-emerald-700 hover:underline">คัดลอก Prompt</button>
+            </div>
+            <p class="text-[11px] text-emerald-950 font-mono bg-white p-2 rounded-xl border border-emerald-100 select-all" id="prompt1">"ฉันมีไฟล์ Excel ยอดขายร้านเครป BTS ช่วยรวมข้อมูลทุกสาขา คำนวณ 3 เมนูที่ทำกำไรสูงสุด และวิเคราะห์ช่วงเวลา Peak Hours พร้อมเสนอไอเดียเพิ่มยอดขาย"</p>
+          </div>
+        </div>
+
+        <!-- Download Package Button -->
+        <a href="/materials/excel-crepe/topic1_crepe_excel_pack.zip" download class="btn-primary py-3 text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-teal-700 shadow-emerald-900/20 font-black flex items-center justify-center gap-2">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>ดาวน์โหลดแพ็กเกจ Excel ร้านเครป (.ZIP - 108 KB)</span>
+        </a>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TOPIC 2: BAAN SAI THONG PRESENTATION -->
+      <!-- ========================================== -->
+      <div class="workshop-card bg-white p-5 rounded-3xl border-2 border-indigo-100 shadow-sm flex flex-col justify-between space-y-4 hover:border-indigo-300 transition-all">
+        <div class="space-y-3">
+          <!-- Topic Header -->
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-indigo-100 text-indigo-800 mb-1">
+                TOPIC 2 • AI PRESENTATION & SLIDES
+              </span>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                2. สร้างสไลด์ Presentation "บ้านทรายทอง"
+              </h3>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 shadow-inner">
+              <i data-lucide="presentation" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            ข้อมูลวรรณกรรมและละครอมตะ <b>"บ้านทรายทอง"</b> พร้อมรายชื่อตัวละครเอก (พจมาน, ชายกลาง, หม่อมแม่, หญิงใหญ่, หญิงเล็ก, ชายน้อย), โครงเรื่องย่อ 8 สไลด์ และภาพประกอบคฤหาสน์คลาสสิก
+          </p>
+
+          <!-- Files List & Previews -->
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2 text-xs">
+            <p class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+              <i data-lucide="folder" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span>ไฟล์และภาพประกอบในแพ็กเกจ:</span>
+            </p>
+
+            <div class="grid grid-cols-2 gap-2">
+              <a href="/materials/presentation-baansai/baansai_mansion_tv.png" target="_blank" class="block group">
+                <img src="/materials/presentation-baansai/baansai_mansion_tv.png" alt="คฤหาสน์บ้านทรายทอง" class="w-full h-20 object-cover rounded-xl border border-slate-200 group-hover:scale-105 transition-transform">
+                <span class="text-[10px] font-bold text-slate-600 truncate block mt-0.5">🏰 คฤหาสน์บ้านทรายทอง</span>
+              </a>
+              <a href="/materials/presentation-baansai/baansai_characters_card.png" target="_blank" class="block group">
+                <img src="/materials/presentation-baansai/baansai_characters_card.png" alt="ทำเนียบตัวละคร" class="w-full h-20 object-cover rounded-xl border border-slate-200 group-hover:scale-105 transition-transform">
+                <span class="text-[10px] font-bold text-slate-600 truncate block mt-0.5">👥 ทำเนียบตัวละคร 4 คน</span>
+              </a>
+            </div>
+
+            <ul class="space-y-1 text-[11px] text-slate-600 font-medium pt-1">
+              <li class="flex items-center justify-between">
+                <span class="truncate">📝 <b>baansai_characters_and_story.txt</b> (บทและเรื่องย่อ)</span>
+                <a href="/materials/presentation-baansai/baansai_characters_and_story.txt" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Prompt Cheat Sheet Box -->
+          <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-indigo-900 text-[11px] flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i> ตัวอย่าง Prompt สั่งงาน Gamma / Canva:
+              </span>
+              <button type="button" onclick="copyPrompt('prompt2')" class="text-[10px] font-bold text-indigo-700 hover:underline">คัดลอก Prompt</button>
+            </div>
+            <p class="text-[11px] text-indigo-950 font-mono bg-white p-2 rounded-xl border border-indigo-100 select-all" id="prompt2">"สร้างสไลด์ Presentation 8 หน้า เรื่อง 'บ้านทรายทอง' ในสไตล์คลาสสิกวินเทจร่วมสมัย นำเสนอตัวละคร พจมาน, ชายกลาง, หม่อมแม่, ชายน้อย พร้อมสรุปข้อคิดคุณธรรม"</p>
+          </div>
+        </div>
+
+        <!-- Download Package Button -->
+        <a href="/materials/presentation-baansai/topic2_baansai_presentation_pack.zip" download class="btn-primary py-3 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-700 shadow-indigo-900/20 font-black flex items-center justify-center gap-2">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>ดาวน์โหลดแพ็กเกจสไลด์บ้านทรายทอง (.ZIP - 19 KB)</span>
+        </a>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TOPIC 3: TREE PLANTING GAME ASSETS -->
+      <!-- ========================================== -->
+      <div class="workshop-card bg-white p-5 rounded-3xl border-2 border-amber-100 shadow-sm flex flex-col justify-between space-y-4 hover:border-amber-300 transition-all">
+        <div class="space-y-3">
+          <!-- Topic Header -->
+          <div class="flex items-start justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-amber-100 text-amber-800 mb-1">
+                TOPIC 3 • AI GAME CODING
+              </span>
+              <h3 class="text-base sm:text-lg font-black text-slate-900 leading-snug">
+                3. สร้างเกมปลูกต้นไม้ (Tree, Gold & Apple)
+              </h3>
+            </div>
+            <div class="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-inner">
+              <i data-lucide="gamepad-2" class="w-5 h-5"></i>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-600 leading-relaxed">
+            ชุด Asset กราฟิกภาพใส (PNG Transparent) สำหรับให้ AI เขียนเกมปลูกต้นไม้: ต้นไม้ 3 สเต็ป, ผลแอปเปิ้ล, แอปเปิ้ลทองคำ, เหรียญทอง และโค้ด HTML ตั้งต้น
+          </p>
+
+          <!-- Sprites Preview Gallery -->
+          <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-2 text-xs">
+            <p class="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+              <i data-lucide="image" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>ตัวอย่าง Sprite PNG Assets ในเกม:</span>
+            </p>
+
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/tree_stage1_seedling.png" class="w-10 h-10 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-slate-600 block mt-1">1. ต้นกล้า</span>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/tree_stage2_growing.png" class="w-10 h-10 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-slate-600 block mt-1">2. ต้นกำลังโต</span>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/tree_stage3_mature.png" class="w-10 h-10 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-slate-600 block mt-1">3. ต้นใหญ่ออกผล</span>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/apple_fruit.png" class="w-8 h-8 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-rose-600 block mt-1">แอปเปิ้ลแดง</span>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/golden_apple.png" class="w-8 h-8 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-amber-600 block mt-1">แอปเปิ้ลทอง ✨</span>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <img src="/materials/game-tree-farm/gold_coin.png" class="w-8 h-8 mx-auto object-contain">
+                <span class="text-[10px] font-bold text-amber-600 block mt-1">เหรียญทอง</span>
+              </div>
+            </div>
+
+            <div class="pt-1 flex items-center justify-between text-[11px] text-slate-600 font-medium">
+              <span>💻 โค้ดตั้งต้น: <b>game_starter_prompt_and_code.html</b></span>
+              <a href="/materials/game-tree-farm/game_starter_prompt_and_code.html" download class="text-blue-600 hover:underline font-bold">โหลด</a>
+            </div>
+          </div>
+
+          <!-- Prompt Cheat Sheet Box -->
+          <div class="bg-amber-50/70 p-3 rounded-2xl border border-amber-200 text-xs space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-900 text-[11px] flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i> ตัวอย่าง Prompt สั่ง Claude / ChatGPT:
+              </span>
+              <button type="button" onclick="copyPrompt('prompt3')" class="text-[10px] font-bold text-amber-700 hover:underline">คัดลอก Prompt</button>
+            </div>
+            <p class="text-[11px] text-amber-950 font-mono bg-white p-2 rounded-xl border border-amber-100 select-all" id="prompt3">"ใช้ assets (tree_stage1/2/3, apple_fruit, gold_coin) เขียนเกมปลูกต้นไม้ Single File HTML: กดรดน้ำให้ต้นไม้โต ดรอปแอปเปิ้ล นำไปขายเป็นทอง และอัปเกรดร้านค้า"</p>
+          </div>
+        </div>
+
+        <!-- Download Package Button -->
+        <a href="/materials/game-tree-farm/topic3_tree_game_assets_pack.zip" download class="btn-primary py-3 text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-orange-600 shadow-amber-900/20 font-black flex items-center justify-center gap-2">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>ดาวน์โหลด Game Assets ปลูกต้นไม้ (.ZIP - 17 KB)</span>
+        </a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Big Projector QR Modal for Download Page (420px) -->
+  <div id="qrModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop hidden">
+    <div class="workshop-card max-w-2xl w-full p-6 sm:p-8 text-center bg-white shadow-2xl relative animate-scale-up">
+      <button type="button" id="closeQrModalBtn" class="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+
+      <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-200 px-3.5 py-1.5 rounded-full text-xs font-bold mb-2">
+        <i data-lucide="download-cloud" class="w-4 h-4"></i>
+        <span>สแกนเพื่อดาวน์โหลดไฟล์ Workshop</span>
+      </div>
+
+      <h3 class="text-2xl sm:text-3xl font-black text-slate-900 mb-1">
+        คลังไฟล์ประกอบการอบรม AI Workshop
+      </h3>
+      <p class="text-xs sm:text-sm text-slate-500 mb-4 font-medium">
+        เปิดกล้องมือถือแล้วสแกน QR Code ด้านล่างเพื่อดาวน์โหลดไฟล์และดู Prompt ทั้ง 3 เรื่องได้ทันที
+      </p>
+
+      <div class="bg-white p-5 rounded-3xl border-4 border-blue-100 inline-block shadow-xl mb-4">
+        <div id="modalQrContainer" class="flex items-center justify-center min-w-[280px] sm:min-w-[420px] min-h-[280px] sm:min-h-[420px]">
+          <!-- Big QR Canvas -->
+        </div>
+      </div>
+
+      <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 max-w-md mx-auto mb-3 text-left">
+        <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-1">
+          <span>หรือเปิด URL บนเบราว์เซอร์:</span>
+          <button type="button" onclick="copyDownloadUrl()" class="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-bold">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i> คัดลอกลิงก์
+          </button>
+        </div>
+        <p class="text-sm font-mono font-black text-blue-700 break-all select-all" id="modalDisplayUrl">
+          https://.../files
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentDownloadUrl = `${window.location.origin}/files`;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+
+      currentDownloadUrl = `${window.location.origin}/files`;
+      document.getElementById('pageQrUrl').textContent = currentDownloadUrl;
+      document.getElementById('modalDisplayUrl').textContent = currentDownloadUrl;
+
+      // Render Inline QR
+      const sideContainer = document.getElementById('pageQrContainer');
+      if (sideContainer) {
+        new QRCode(sideContainer, {
+          text: currentDownloadUrl,
+          width: 160,
+          height: 160,
+          colorDark: '#0B1B3D',
+          colorLight: '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+
+      // Render Modal QR
+      const modalContainer = document.getElementById('modalQrContainer');
+      if (modalContainer) {
+        new QRCode(modalContainer, {
+          text: currentDownloadUrl,
+          width: 420,
+          height: 420,
+          colorDark: '#0B1B3D',
+          colorLight: '#FFFFFF',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+
+      // QR Modal Listeners
+      const qrModal = document.getElementById('qrModal');
+      const openBigQrBtn = document.getElementById('openBigQrBtn');
+      const pageQrClickBox = document.getElementById('pageQrClickBox');
+      const closeQrModalBtn = document.getElementById('closeQrModalBtn');
+
+      if (openBigQrBtn) openBigQrBtn.addEventListener('click', () => qrModal.classList.remove('hidden'));
+      if (pageQrClickBox) pageQrClickBox.addEventListener('click', () => qrModal.classList.remove('hidden'));
+      if (closeQrModalBtn) closeQrModalBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
+
+      qrModal.addEventListener('click', (e) => {
+        if (e.target === qrModal) qrModal.classList.add('hidden');
+      });
+
+      const copyBtn = document.getElementById('copyPageUrlBtn');
+      if (copyBtn) copyBtn.addEventListener('click', copyDownloadUrl);
+    });
+
+    function copyDownloadUrl() {
+      navigator.clipboard.writeText(currentDownloadUrl).then(() => {
+        alert('คัดลอกลิงก์หน้าดาวน์โหลดสำเร็จแล้ว:\n' + currentDownloadUrl);
+      }).catch(() => {
+        alert('ลิงก์: ' + currentDownloadUrl);
+      });
+    }
+
+    function copyPrompt(elementId) {
+      const text = document.getElementById(elementId).textContent.replace(/^"|"$/g, '');
+      navigator.clipboard.writeText(text).then(() => {
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 35, spread: 40, origin: { y: 0.7 } });
+        }
+        alert('คัดลอก Prompt สำเร็จแล้ว! สามารถนำไป Paste ใน ChatGPT / Claude ได้เลย');
+      });
+    }
+  </script>
+</body>
+</html>
