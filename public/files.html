@@ -206,7 +206,7 @@
           </div>
 
           <p class="text-xs text-slate-600 leading-relaxed">
-            ข้อมูลวรรณกรรมและละครอมตะ <b>"บ้านทรายทอง"</b> พร้อมรายชื่อตัวละครเอก (พจมาน, ชายกลาง, หม่อมแม่, หญิงใหญ่, หญิงเล็ก, ชายน้อย), โครงเรื่องย่อ 8 สไลด์ และภาพประกอบคฤหาสน์คลาสสิก
+            ข้อมูลวรรณกรรมและละครโทรทัศน์อมตะ <b>"บ้านทรายทอง"</b> พร้อมรายชื่อตัวละคร (พจมาน, ชายกลาง, หม่อมแม่, หญิงใหญ่, หญิงเล็ก, ชายน้อย), โครงเรื่องย่อ และภาพนักแสดงครอบครัวบ้านทรายทอง ให้ผู้เข้าอบรมนำข้อมูลไปเขียน Prompt ให้ AI สร้างสไลด์และทำเนียบตัวละครเอง
           </p>
 
           <!-- Files List & Previews -->
@@ -216,21 +216,26 @@
               <span>ไฟล์และภาพประกอบในแพ็กเกจ:</span>
             </p>
 
-            <div class="grid grid-cols-2 gap-2">
-              <a href="/materials/presentation-baansai/baansai_mansion_tv.png" target="_blank" class="block group">
-                <img src="/materials/presentation-baansai/baansai_mansion_tv.png" alt="คฤหาสน์บ้านทรายทอง" class="w-full h-20 object-cover rounded-xl border border-slate-200 group-hover:scale-105 transition-transform">
-                <span class="text-[10px] font-bold text-slate-600 truncate block mt-0.5">🏰 คฤหาสน์บ้านทรายทอง</span>
-              </a>
-              <a href="/materials/presentation-baansai/baansai_characters_card.png" target="_blank" class="block group">
-                <img src="/materials/presentation-baansai/baansai_characters_card.png" alt="ทำเนียบตัวละคร" class="w-full h-20 object-cover rounded-xl border border-slate-200 group-hover:scale-105 transition-transform">
-                <span class="text-[10px] font-bold text-slate-600 truncate block mt-0.5">👥 ทำเนียบตัวละคร 4 คน</span>
+            <div class="rounded-xl overflow-hidden border border-slate-200 bg-black/90">
+              <a href="/materials/presentation-baansai/baansai_family_tv.png" target="_blank" class="block group relative">
+                <img src="/materials/presentation-baansai/baansai_family_tv.png" alt="รูปครอบครัวและนักแสดงบ้านทรายทอง" class="w-full h-40 object-cover object-top group-hover:scale-105 transition-transform duration-300">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex items-end p-2.5">
+                  <span class="text-[11px] font-black text-amber-300 flex items-center gap-1">
+                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                    <span>รูปครอบครัวนักแสดงบ้านทรายทอง (คลิกเพื่อดูภาพเต็ม)</span>
+                  </span>
+                </div>
               </a>
             </div>
 
             <ul class="space-y-1 text-[11px] text-slate-600 font-medium pt-1">
               <li class="flex items-center justify-between">
-                <span class="truncate">📝 <b>baansai_characters_and_story.txt</b> (บทและเรื่องย่อ)</span>
+                <span class="truncate">📝 <b>baansai_characters_and_story.txt</b> (รายชื่อ & เรื่องย่อ)</span>
                 <a href="/materials/presentation-baansai/baansai_characters_and_story.txt" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
+              </li>
+              <li class="flex items-center justify-between">
+                <span class="truncate">🖼️ <b>baansai_family_tv.png</b> (รูปครอบครัวบ้านทรายทอง)</span>
+                <a href="/materials/presentation-baansai/baansai_family_tv.png" download class="text-blue-600 hover:underline font-bold ml-1 flex-shrink-0">โหลด</a>
               </li>
             </ul>
           </div>
@@ -239,18 +244,18 @@
           <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 text-xs space-y-1">
             <div class="flex items-center justify-between">
               <span class="font-bold text-indigo-900 text-[11px] flex items-center gap-1">
-                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i> ตัวอย่าง Prompt สั่งงาน Gamma / Canva:
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i> ตัวอย่าง Prompt สั่ง Gamma / Canva:
               </span>
               <button type="button" onclick="copyPrompt('prompt2')" class="text-[10px] font-bold text-indigo-700 hover:underline">คัดลอก Prompt</button>
             </div>
-            <p class="text-[11px] text-indigo-950 font-mono bg-white p-2 rounded-xl border border-indigo-100 select-all" id="prompt2">"สร้างสไลด์ Presentation 8 หน้า เรื่อง 'บ้านทรายทอง' ในสไตล์คลาสสิกวินเทจร่วมสมัย นำเสนอตัวละคร พจมาน, ชายกลาง, หม่อมแม่, ชายน้อย พร้อมสรุปข้อคิดคุณธรรม"</p>
+            <p class="text-[11px] text-indigo-950 font-mono bg-white p-2 rounded-xl border border-indigo-100 select-all" id="prompt2">"สร้างสไลด์ Presentation 8 หน้า พร้อมการ์ดทำเนียบตัวละคร 'บ้านทรายทอง' ในสไตล์คลาสสิกวินเทจร่วมสมัย วิเคราะห์ตัวละคร พจมาน, ชายกลาง, หม่อมแม่, ชายน้อย และสรุปข้อคิดคุณธรรม"</p>
           </div>
         </div>
 
         <!-- Download Package Button -->
         <a href="/materials/presentation-baansai/topic2_baansai_presentation_pack.zip" download class="btn-primary py-3 text-xs sm:text-sm bg-gradient-to-r from-indigo-600 to-purple-700 shadow-indigo-900/20 font-black flex items-center justify-center gap-2">
           <i data-lucide="download" class="w-4 h-4"></i>
-          <span>ดาวน์โหลดแพ็กเกจสไลด์บ้านทรายทอง (.ZIP - 19 KB)</span>
+          <span>ดาวน์โหลดแพ็กเกจสไลด์บ้านทรายทอง (.ZIP)</span>
         </a>
       </div>
 
