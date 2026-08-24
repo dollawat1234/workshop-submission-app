@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ตารางผลงานแข่งขันรายทีม | AI Workshop Kanban</title>
+  <title>หน้าจอวิทยากร & สรุปผลงาน | AI Workshop</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -18,13 +18,13 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 
   <!-- Custom Stylesheet with Cache-Busting -->
-  <link rel="stylesheet" href="/css/style.css?v=1787512700">
+  <link rel="stylesheet" href="/css/style.css?v=1787513000">
 </head>
 <body class="bg-[#FAF8F5] text-slate-900 min-h-screen flex flex-col">
 
   <!-- Slim Compact Top Bar with Playful AI Workshop Branding -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm px-4 py-2.5">
-    <div class="max-w-[1780px] mx-auto flex flex-wrap items-center justify-between gap-3">
+    <div class="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-3">
       
       <!-- Workshop Title & Badges -->
       <div class="flex items-center gap-2.5">
@@ -38,7 +38,7 @@
         </div>
         <span class="hidden md:inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Live Kanban Board</span>
+          <span>Live Auto-Update</span>
         </span>
       </div>
 
@@ -100,73 +100,89 @@
     </div>
   </header>
 
-  <!-- Main Stage Area (Left Side QR | Right Side Team Kanban Columns) -->
-  <main class="max-w-[1780px] w-full mx-auto px-3 sm:px-4 py-4 flex-1 flex flex-col lg:flex-row gap-4 items-start">
+  <!-- Main Stage Area (Dual Column: Left QR & Teams | Right Submissions Stream) -->
+  <main class="max-w-[1700px] w-full mx-auto px-4 py-4 flex-1 flex flex-col lg:flex-row gap-5 items-start">
 
-    <!-- Left Sticky Sidebar: Always-On Live QR Code with Mascot -->
-    <aside class="w-full lg:w-72 flex-shrink-0 space-y-3 lg:sticky lg:top-16">
+    <!-- Left Sticky Sidebar: Always-On Live QR Code with Cute Mascot Header -->
+    <aside class="w-full lg:w-80 flex-shrink-0 space-y-4 lg:sticky lg:top-16">
       
-      <!-- Prominent Join QR Code Card -->
+      <!-- Prominent Join QR Code Card with Cheering Mascot -->
       <div class="workshop-card p-4 bg-white border border-blue-100 shadow-md text-center relative overflow-hidden">
         
-        <div class="w-20 h-14 mx-auto -mt-2 mb-1 mascot-float" id="sidebarMascotSlot">
+        <!-- Mascot Banner on Top of QR -->
+        <div class="w-24 h-16 mx-auto -mt-2 mb-1 mascot-float" id="sidebarMascotSlot">
           <!-- Injected Cheering Blob -->
         </div>
 
-        <div class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1 rounded-full text-[11px] font-bold mb-2 shadow-sm">
+        <div class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-1 rounded-full text-xs font-bold mb-2 shadow-sm">
           <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-          <span>สแกนส่งผลงาน</span>
+          <span>สแกนเพื่อเข้าร่วม & ส่งผลงาน</span>
         </div>
 
-        <div class="bg-white p-2 rounded-xl border-2 border-blue-100 inline-block shadow-inner mb-2 cursor-pointer hover:border-blue-400 transition-all" id="sideQrBox" title="คลิกเพื่อดูภาพขยายเต็มจอ">
-          <div id="sideQrContainer" class="flex items-center justify-center min-w-[150px] min-h-[150px]">
+        <div class="bg-white p-2.5 rounded-xl border-2 border-blue-100 inline-block shadow-inner mb-2 cursor-pointer hover:border-blue-400 transition-all" id="sideQrBox" title="คลิกเพื่อดูภาพขยายเต็มจอ">
+          <div id="sideQrContainer" class="flex items-center justify-center min-w-[170px] min-h-[170px]">
             <!-- Side QR Code Canvas Injected -->
           </div>
         </div>
 
         <p class="text-xs font-mono font-bold text-blue-700 break-all select-all mb-1" id="sideQrUrl">
-          http://localhost:3000/join
+          https://.../join
         </p>
 
         <p class="text-[11px] text-slate-500 font-medium">
-          เลือกทีมแล้วส่งรูปขึ้นตารางได้ทันที ✨
+          สแกนแล้วเลือกทีมและส่งรูปภาพได้ทันที ✨
         </p>
       </div>
 
-      <!-- Quick Instructions / Tips Box -->
-      <div class="workshop-card p-3.5 bg-blue-50/70 border border-blue-200 text-xs space-y-1.5">
-        <div class="flex items-center gap-1.5 font-bold text-blue-900">
-          <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500 fill-current"></i>
-          <span>กติกาการแข่งขัน</span>
+      <!-- Team Scoreboard / Submission Status Cards -->
+      <div class="workshop-card p-4 bg-white border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+            <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
+            <span>สถานะการส่งงานรายทีม</span>
+          </h3>
+          <span class="text-[11px] text-slate-400 font-medium">คลิกเพื่อกรอง</span>
         </div>
-        <p class="text-[11px] text-slate-600 leading-relaxed">
-          ตารางจะอัปเดตผลงานของแต่ละทีมแบบ Real-time วิทยากรสามารถกดปุ่ม <b>"โหมดโชว์ผลงาน"</b> ด้านบนเพื่อเปิดเผยภาพพร้อมกันทั้งห้อง!
-        </p>
+
+        <div class="space-y-2" id="sideTeamScoreboard">
+          <!-- Dynamically populated teams -->
+        </div>
       </div>
 
     </aside>
 
-    <!-- Right Area: Team-by-Team Kanban Board Columns -->
-    <section class="flex-1 w-full space-y-3 min-w-0">
+    <!-- Right Area: Chronological Submissions Feed (Newest Top to Bottom) -->
+    <section class="flex-1 w-full space-y-3">
       
-      <!-- Top Overview Bar -->
+      <!-- Filter Bar & Mode Info (Clickable Mode Badge Toggle) -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-        <div class="flex items-center gap-2">
-          <i data-lucide="columns-3" class="w-4 h-4 text-blue-600"></i>
-          <h2 class="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wide">
-            ตารางแข่งขันส่งผลงานแยกตามทีม (Team Battle Board)
-          </h2>
+        
+        <!-- Filter Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto" id="teamFilterPills">
+          <button type="button" class="filter-pill active px-3.5 py-1 text-xs font-bold rounded-full bg-blue-600 text-white shadow-sm" data-team="all">
+            ทั้งหมด (<span id="filterAllCount">0</span>)
+          </button>
+          <!-- Injected dynamic team filters -->
         </div>
 
         <!-- Mode Indicator Badge (Clickable Quick Toggle) -->
-        <button type="button" id="revealModeBadge" onclick="window.toggleRevealMode()" class="text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer transition-all shadow-sm">
+        <button type="button" id="revealModeBadge" onclick="window.toggleRevealMode()" class="text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 cursor-pointer transition-all shadow-sm">
           <!-- Injected status -->
         </button>
       </div>
 
-      <!-- Dynamic Kanban Columns Container -->
-      <div id="kanbanBoardContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start w-full">
-        <!-- Dynamically injected team columns (Team A, Team B, Team C, Team D...) -->
+      <!-- Submissions Stream Grid (Newest First) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4" id="submissionsGrid">
+        <!-- Dynamically populated submission cards -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="workshop-card p-12 text-center bg-white border border-slate-200 hidden">
+        <div class="w-36 h-28 mx-auto mb-2" id="emptyMascotSlot"></div>
+        <h4 class="text-base sm:text-lg font-extrabold text-slate-800">ยังไม่มีผลงานส่งเข้ามาในรอบนี้</h4>
+        <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-md mx-auto">
+          ผู้เข้าอบรมสามารถสแกน QR Code ทางด้านซ้ายเพื่อเลือกทีมและส่งผลงานขึ้นสู่จอได้เลย!
+        </p>
       </div>
 
     </section>
@@ -206,7 +222,7 @@
           </button>
         </div>
         <p class="text-sm font-mono font-black text-blue-700 break-all select-all" id="qrDisplayUrl">
-          http://localhost:3000/join
+          https://.../join
         </p>
       </div>
 
@@ -401,7 +417,7 @@
   </div>
 
   <!-- Scripts with Cache-Busting -->
-  <script src="/js/mascots.js?v=1787512700"></script>
-  <script src="/js/speaker.js?v=1787512700"></script>
+  <script src="/js/mascots.js?v=1787513000"></script>
+  <script src="/js/speaker.js?v=1787513000"></script>
 </body>
 </html>

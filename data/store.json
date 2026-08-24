@@ -59,6 +59,25 @@
       "likes": 0,
       "createdAt": "2026-08-24T07:13:59.085Z",
       "updatedAt": null
+    },
+    {
+      "id": "sub_1787557781875_pxibyw",
+      "teamId": "team-b",
+      "teamName": "ทีม B (Beta)",
+      "teamColor": "#8B5CF6",
+      "teamBg": "#F5F3FF",
+      "submitterName": "ต้น & นัท (ทีม B)",
+      "title": "banner_ai_usage.png",
+      "caption": "Tested on restored stream feed view.",
+      "filename": "1787557775834-827115-banner_ai_usage.png",
+      "originalname": "banner_ai_usage.png",
+      "mimetype": "image/png",
+      "fileType": "image",
+      "size": 912454,
+      "fileUrl": "/uploads/1787557775834-827115-banner_ai_usage.png",
+      "likes": 0,
+      "createdAt": "2026-08-24T07:49:41.875Z",
+      "updatedAt": null
     }
   ]
 }
