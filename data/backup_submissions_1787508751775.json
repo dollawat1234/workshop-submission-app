@@ -1,0 +1,38 @@
+[
+  {
+    "id": "sub_1787506241912_ffbg5b",
+    "teamId": "team-a",
+    "teamName": "ทีม A (Alpha)",
+    "teamColor": "#1E5AF6",
+    "teamBg": "#EFF6FF",
+    "submitterName": "สมชาย & แพรว",
+    "title": "แคมเปญ AI Marketing Poster",
+    "caption": "Prompt: Minimalist flat illustration of cute blue blobs using AI tools in corporate workspace.",
+    "filename": "1787506241909-464141-banner_chatgpt.png",
+    "originalname": "banner_chatgpt.png",
+    "mimetype": "image/png",
+    "fileType": "image",
+    "size": 734621,
+    "fileUrl": "/uploads/1787506241909-464141-banner_chatgpt.png",
+    "likes": 0,
+    "createdAt": "2026-08-23T17:30:41.912Z"
+  },
+  {
+    "id": "sub_1787506246505_opaxjw",
+    "teamId": "team-b",
+    "teamName": "ทีม B (Beta)",
+    "teamColor": "#8B5CF6",
+    "teamBg": "#F5F3FF",
+    "submitterName": "ต้น & นัท (ทีม B)",
+    "title": "ใช้ AI ยังไงให้เข้าใจง่าย",
+    "caption": "Prompt: Playful blue mascot character typing on laptop with coffee and checklist.",
+    "filename": "1787506246503-920638-banner_ai_usage.png",
+    "originalname": "banner_ai_usage.png",
+    "mimetype": "image/png",
+    "fileType": "image",
+    "size": 912454,
+    "fileUrl": "/uploads/1787506246503-920638-banner_ai_usage.png",
+    "likes": 1,
+    "createdAt": "2026-08-23T17:30:46.505Z"
+  }
+]

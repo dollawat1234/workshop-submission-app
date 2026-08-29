@@ -1,0 +1,40 @@
+[
+  {
+    "id": "sub_1787509083021_df9mn4",
+    "teamId": "team-a",
+    "teamName": "ทีม A (Alpha)",
+    "teamColor": "#1E5AF6",
+    "teamBg": "#EFF6FF",
+    "submitterName": "สมชาย, แพรว & กอล์ฟ (อัปเดต)",
+    "title": "ภาพโปสเตอร์ AI Prompt [ฉบับแก้ไข]",
+    "caption": "ปรับปรุง Prompt เพิ่มเติมให้คมชัดยิ่งขึ้น 🚀",
+    "filename": "1787509083019-389326-banner_chatgpt.png",
+    "originalname": "banner_chatgpt.png",
+    "mimetype": "image/png",
+    "fileType": "image",
+    "size": 734621,
+    "fileUrl": "/uploads/1787509083019-389326-banner_chatgpt.png",
+    "likes": 1,
+    "createdAt": "2026-08-23T18:18:03.021Z",
+    "updatedAt": "2026-08-23T18:18:03.039Z"
+  },
+  {
+    "id": "sub_1787509614709_l4h2z8",
+    "teamId": "team-d",
+    "teamName": "ทีม D (Delta)",
+    "teamColor": "#F59E0B",
+    "teamBg": "#FFFBEB",
+    "submitterName": "เมย์ & วิน (ทีม C)",
+    "title": "วิทยากรแก้ไขย้ายไปทีม D",
+    "caption": "วิทยากรปรับปรุงข้อมูลให้ถูกต้อง",
+    "filename": "1787509614707-410387-banner_chatgpt.png",
+    "originalname": "banner_chatgpt.png",
+    "mimetype": "image/png",
+    "fileType": "image",
+    "size": 734621,
+    "fileUrl": "/uploads/1787509614707-410387-banner_chatgpt.png",
+    "likes": 0,
+    "createdAt": "2026-08-23T18:26:54.709Z",
+    "updatedAt": "2026-08-23T18:26:54.721Z"
+  }
+]
