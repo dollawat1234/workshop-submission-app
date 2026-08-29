@@ -146,25 +146,25 @@
       <!-- Quick Tips Box -->
       <div class="workshop-card p-3.5 bg-blue-50/70 border border-blue-200 text-xs space-y-1.5">
         <div class="flex items-center gap-1.5 font-bold text-blue-900">
-          <i data-lucide="trophy" class="w-3.5 h-3.5 text-amber-500 fill-current"></i>
-          <span>แถวแข่งขันรายทีม (Team Rows)</span>
+          <i data-lucide="columns-3" class="w-3.5 h-3.5 text-amber-500 fill-current"></i>
+          <span>กระดานแข่งขันเรียงซ้ายไปขวา</span>
         </div>
         <p class="text-[11px] text-slate-600 leading-relaxed">
-          แต่ละแถวคือผลงานของแต่ละทีมแบบเรียลไทม์ วิทยากรสามารถกดปุ่ม <b>"โหมดโชว์ผลงาน"</b> ด้านบนเพื่อเปิดดูภาพทั้งหมดพร้อมกัน!
+          แต่ละคอลัมน์คือผลงานของแต่ละทีมแบบเรียลไทม์ วิทยากรสามารถกดปุ่ม <b>"โหมดโชว์ผลงาน"</b> ด้านบนเพื่อเปิดดูภาพทั้งหมดพร้อมกัน!
         </p>
       </div>
 
     </aside>
 
-    <!-- Right Area: Team Swimlane Rows (1 Row Per Team Laid Top-to-Bottom) -->
+    <!-- Right Area: Team Kanban Columns (Side-by-Side Left-to-Right: Team A | Team B | Team C | Team D) -->
     <section class="flex-1 w-full space-y-3 min-w-0">
       
       <!-- Top Overview Bar -->
       <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
         <div class="flex items-center gap-2">
-          <i data-lucide="rows-3" class="w-4 h-4 text-blue-600"></i>
+          <i data-lucide="columns-3" class="w-4 h-4 text-blue-600"></i>
           <h2 class="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wide">
-            ตารางผลงานแข่งขันแยกตามแถวรายทีม (Team Battle Board)
+            กระดานแข่งขันแยกทีมเรียงซ้ายไปขวา (Team Battle Columns: Left to Right)
           </h2>
         </div>
 
@@ -174,9 +174,9 @@
         </button>
       </div>
 
-      <!-- Dynamic Team Rows Container (Row 1: Team A, Row 2: Team B, Row 3: Team C, Row 4: Team D...) -->
-      <div id="teamSwimlanesContainer" class="space-y-3.5 w-full">
-        <!-- Dynamically injected team rows -->
+      <!-- Dynamic Left-to-Right Team Columns Container (Team A | Team B | Team C | Team D) -->
+      <div id="teamColumnsContainer" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5 w-full items-start">
+        <!-- Dynamically injected team columns -->
       </div>
 
     </section>

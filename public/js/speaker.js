@@ -1,4 +1,4 @@
-// Speaker & Projector Main Screen Controller JS (Team Swimlane Rows & Realtime Public QR)
+// Speaker & Projector Main Screen Controller JS (Left-to-Right Team Columns & Realtime Public QR)
 
 let currentSession = {
   revealSubmissions: false,
@@ -18,7 +18,7 @@ let isTheaterMode = false;
 window.setRevealMode = async function (shouldReveal) {
   currentSession.revealSubmissions = Boolean(shouldReveal);
   renderHeaderAndSession();
-  renderTeamSwimlanes();
+  renderTeamColumns();
 
   if (shouldReveal && typeof confetti === 'function') {
     confetti({
@@ -40,7 +40,7 @@ window.setRevealMode = async function (shouldReveal) {
     if (data && typeof data.revealSubmissions === 'boolean') {
       currentSession.revealSubmissions = data.revealSubmissions;
       renderHeaderAndSession();
-      renderTeamSwimlanes();
+      renderTeamColumns();
     }
   } catch (err) {
     console.error('Error toggling reveal mode:', err);
@@ -94,7 +94,7 @@ async function fetchAllData() {
     allSubmissions = subsData.submissions || [];
 
     renderHeaderAndSession();
-    renderTeamSwimlanes();
+    renderTeamColumns();
   } catch (err) {
     console.error('Error fetching speaker data:', err);
   } finally {
@@ -208,9 +208,9 @@ function renderHeaderAndSession() {
   if (window.lucide) lucide.createIcons();
 }
 
-// 5. Render Team Swimlane Rows (1 Dedicated Row per Team, Laid Top to Bottom)
-function renderTeamSwimlanes() {
-  const container = document.getElementById('teamSwimlanesContainer');
+// 5. Render Left-to-Right Team Columns (Side-by-Side: Team A | Team B | Team C | Team D)
+function renderTeamColumns() {
+  const container = document.getElementById('teamColumnsContainer');
   if (!container) return;
   container.innerHTML = '';
 
@@ -223,77 +223,74 @@ function renderTeamSwimlanes() {
     const teamColor = team.color || '#1E5AF6';
     const teamBg = team.bg || '#EFF6FF';
 
-    const row = document.createElement('div');
-    row.className = 'team-swimlane-row flex flex-col md:flex-row items-stretch bg-white rounded-2xl border-2 shadow-sm transition-all';
-    row.style.borderColor = teamColor + '50';
+    const col = document.createElement('div');
+    col.className = 'team-kanban-column flex flex-col bg-white rounded-2xl border-2 shadow-sm transition-all overflow-hidden';
+    col.style.borderColor = teamColor + '50';
 
-    // Left Team Header Card (Full height in row)
+    // Column Header (Top of each team column)
     const headerPanel = document.createElement('div');
-    headerPanel.className = 'w-full md:w-60 p-4 flex flex-row md:flex-col justify-between items-center md:items-start border-b md:border-b-0 md:border-r-2 flex-shrink-0';
+    headerPanel.className = 'p-3.5 flex items-center justify-between border-b-2 flex-shrink-0';
     headerPanel.style.backgroundColor = teamBg;
     headerPanel.style.borderColor = teamColor + '30';
 
     headerPanel.innerHTML = `
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-11 h-11 rounded-2xl text-white font-black text-lg flex items-center justify-center flex-shrink-0 shadow-md" style="background-color: ${teamColor};">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl text-white font-black text-sm flex items-center justify-center flex-shrink-0 shadow-md" style="background-color: ${teamColor};">
           ${team.code || team.name.charAt(0)}
         </div>
         <div class="truncate">
-          <span class="text-[10px] font-black tracking-wider uppercase opacity-75" style="color: ${teamColor};">ทีมที่ ${teamIndex + 1}</span>
-          <h3 class="text-sm sm:text-base font-black text-slate-900 truncate leading-snug">${escapeHtml(team.name)}</h3>
+          <span class="text-[9px] font-black tracking-wider uppercase opacity-75 block" style="color: ${teamColor};">ทีมที่ ${teamIndex + 1}</span>
+          <h3 class="text-xs sm:text-sm font-black text-slate-900 truncate leading-snug">${escapeHtml(team.name)}</h3>
         </div>
       </div>
 
-      <div class="mt-0 md:mt-3 flex md:flex-col items-end md:items-start justify-between w-full gap-1">
-        <span class="text-xs font-black px-3 py-1 rounded-full text-white shadow-sm flex items-center gap-1.5" style="background-color: ${teamColor};">
-          <i data-lucide="folder-check" class="w-3.5 h-3.5"></i>
-          <span>ส่งแล้ว ${count} ชิ้น</span>
-        </span>
-        <span class="text-[10px] text-slate-500 font-medium">
-          ${count > 0 ? `ล่าสุด ${formatTime(teamSubmissions[0].createdAt)}` : 'ยังไม่มีผลงาน'}
+      <div class="text-right flex-shrink-0">
+        <span class="text-[11px] font-black px-2.5 py-1 rounded-full text-white shadow-sm inline-flex items-center gap-1" style="background-color: ${teamColor};">
+          <i data-lucide="folder-check" class="w-3 h-3"></i>
+          <span>${count} ชิ้น</span>
         </span>
       </div>
     `;
 
-    // Right Submissions Horizontal Track
-    const track = document.createElement('div');
-    track.className = 'swimlane-cards-track flex-1 flex items-stretch gap-3 overflow-x-auto p-3 min-h-[190px]';
+    // Column Body (Vertical cards container)
+    const cardsContainer = document.createElement('div');
+    cardsContainer.className = 'team-column-cards space-y-3 p-3 flex-1 overflow-y-auto max-h-[75vh]';
 
     if (count === 0) {
-      track.innerHTML = `
-        <div class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl text-center" style="border-color: ${teamColor}30; background-color: ${teamBg}20;">
+      cardsContainer.innerHTML = `
+        <div class="w-full flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl text-center min-h-[180px]" style="border-color: ${teamColor}30; background-color: ${teamBg}20;">
           <div class="w-8 h-8 rounded-full flex items-center justify-center mb-1.5" style="background-color: ${teamBg}; color: ${teamColor};">
             <i data-lucide="hourglass" class="w-4 h-4"></i>
           </div>
-          <p class="text-xs font-bold text-slate-600">กำลังรอผลงานของ ${escapeHtml(team.name)} ⏳</p>
-          <p class="text-[10px] text-slate-400 mt-0.5">สมาชิกในทีมสามารถสแกน QR เพื่อส่งภาพขึ้นแถวนี้ได้เลย</p>
+          <p class="text-xs font-bold text-slate-600">กำลังรอผลงาน ⏳</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">${escapeHtml(team.name)} ยังไม่ได้ส่ง</p>
         </div>
       `;
     } else {
       teamSubmissions.forEach((sub, subIdx) => {
         const card = document.createElement('div');
-        card.className = 'swimlane-card-item workshop-card submission-card overflow-hidden bg-white border border-slate-200 rounded-xl flex flex-col justify-between shadow-sm';
+        card.className = 'workshop-card submission-card overflow-hidden bg-white border border-slate-200 rounded-xl flex flex-col justify-between shadow-sm';
 
         if (!isRevealed) {
           // 🔒 Blind / Contest Mode Card
           card.innerHTML = `
-            <div class="mystery-blur h-32 flex flex-col items-center justify-center p-2 text-center text-white relative cursor-pointer" title="คลิกเพื่อดูรายละเอียด">
-              <div class="mb-1 scale-75">
+            <div class="mystery-blur h-36 flex flex-col items-center justify-center p-2 text-center text-white relative cursor-pointer" title="คลิกเพื่อดูรายละเอียด">
+              <div class="mb-1 scale-90">
                 ${MascotSVGs.mysteryBlob}
               </div>
-              <p class="text-[10px] font-black uppercase tracking-wider text-amber-300">ส่งผลงานแล้ว ✨</p>
-              <p class="text-[9px] text-blue-100 font-mono">ชิ้นที่ ${count - subIdx}</p>
+              <p class="text-[11px] font-black uppercase tracking-wider text-amber-300">ส่งผลงานแล้ว ✨</p>
+              <p class="text-[10px] text-blue-100 font-mono">ชิ้นที่ ${count - subIdx}</p>
             </div>
 
-            <div class="p-2.5 space-y-1 bg-white">
-              <div class="flex items-center justify-between text-[10px]">
+            <div class="p-3 space-y-1.5 bg-white">
+              <div class="flex items-center justify-between text-xs">
                 <span class="font-extrabold text-slate-800 truncate">โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
-                <span class="text-slate-400 font-mono text-[9px]">${formatTime(sub.createdAt)}</span>
+                <span class="text-slate-400 font-mono text-[10px]">${formatTime(sub.createdAt)}</span>
               </div>
               <div class="flex items-center justify-between pt-1 border-t border-slate-100">
-                <span class="text-[9px] font-bold text-slate-400">โหมดแข่งขัน</span>
+                <span class="text-[10px] font-bold text-slate-400">โหมดแข่งขัน</span>
                 <button type="button" class="speaker-edit-btn text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50" data-id="${sub.id}" title="แก้ไขข้อมูล">
-                  <i data-lucide="edit-3" class="w-3 h-3"></i>
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             </div>
@@ -312,7 +309,7 @@ function renderTeamSwimlanes() {
           // 👁️ Showcase Mode Card (Image First)
           const isImage = sub.fileType === 'image';
           card.innerHTML = `
-            <div class="relative bg-slate-900 h-32 overflow-hidden group cursor-pointer thumbnail-click-area">
+            <div class="relative bg-slate-900 h-36 overflow-hidden group cursor-pointer thumbnail-click-area">
               ${isImage ? `
                 <img src="${sub.fileUrl}" alt="${escapeHtml(sub.title)}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
               ` : `
@@ -324,45 +321,45 @@ function renderTeamSwimlanes() {
               
               <div class="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                 <button type="button" class="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg" title="ขยายเต็มจอ">
-                  <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                  <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
                 </button>
                 <a href="${sub.fileUrl}" download class="p-1.5 bg-white/20 hover:bg-white/30 text-white rounded-full shadow-lg" title="ดาวน์โหลด">
-                  <i data-lucide="download" class="w-3 h-3"></i>
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i>
                 </a>
               </div>
 
               <div class="absolute top-1.5 left-1.5">
-                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md" style="background-color: ${teamColor};">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-black text-white shadow-md" style="background-color: ${teamColor};">
                   #${count - subIdx}
                 </span>
               </div>
             </div>
 
-            <div class="p-2.5 space-y-1 bg-white flex-1 flex flex-col justify-between">
+            <div class="p-3 space-y-1 bg-white flex-1 flex flex-col justify-between">
               <div>
-                <div class="flex items-center justify-between text-[9px] text-slate-400 mb-0.5">
-                  <span class="truncate">โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
+                  <span class="truncate font-bold text-slate-700">โดย: ${escapeHtml(sub.submitterName || 'สมาชิก')}</span>
                   <span class="font-mono">${formatTime(sub.createdAt)}</span>
                 </div>
-                <h4 class="text-[11px] font-black text-slate-900 leading-tight line-clamp-1">${escapeHtml(sub.title || 'ไม่มีชื่อ')}</h4>
-                ${sub.caption ? `<p class="text-[10px] text-slate-600 mt-0.5 line-clamp-1">${escapeHtml(sub.caption)}</p>` : ''}
+                <h4 class="text-xs font-black text-slate-900 leading-tight line-clamp-1">${escapeHtml(sub.title || 'ไม่มีชื่อ')}</h4>
+                ${sub.caption ? `<p class="text-[10px] text-slate-600 mt-0.5 line-clamp-2">${escapeHtml(sub.caption)}</p>` : ''}
               </div>
 
-              <div class="pt-1.5 mt-1 border-t border-slate-100 flex items-center justify-between">
-                <button type="button" class="like-btn text-[10px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1 p-0.5 rounded-lg hover:bg-rose-50 transition-colors" data-id="${sub.id}">
-                  <i data-lucide="heart" class="w-3 h-3 ${sub.likes > 0 ? 'fill-current' : ''}"></i>
+              <div class="pt-2 mt-1 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" class="like-btn text-[11px] font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1 p-0.5 rounded-lg hover:bg-rose-50 transition-colors" data-id="${sub.id}">
+                  <i data-lucide="heart" class="w-3.5 h-3.5 ${sub.likes > 0 ? 'fill-current' : ''}"></i>
                   <span>${sub.likes || 0}</span>
                 </button>
 
                 <div class="flex items-center gap-1">
                   <button type="button" class="open-slide-btn p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="นำเสนองาน">
-                    <i data-lucide="presentation" class="w-3 h-3"></i>
+                    <i data-lucide="presentation" class="w-3.5 h-3.5"></i>
                   </button>
                   <button type="button" class="speaker-edit-btn p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" data-id="${sub.id}" title="แก้ไขข้อมูล">
-                    <i data-lucide="edit-3" class="w-3 h-3"></i>
+                    <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                   </button>
                   <button type="button" class="delete-sub-btn p-1 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors" data-id="${sub.id}" title="ลบผลงานนี้">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                   </button>
                 </div>
               </div>
@@ -410,13 +407,13 @@ function renderTeamSwimlanes() {
           }
         }
 
-        track.appendChild(card);
+        cardsContainer.appendChild(card);
       });
     }
 
-    row.appendChild(headerPanel);
-    row.appendChild(track);
-    container.appendChild(row);
+    col.appendChild(headerPanel);
+    col.appendChild(cardsContainer);
+    container.appendChild(col);
   });
 
   if (window.lucide) lucide.createIcons();
@@ -429,7 +426,7 @@ async function likeSubmission(id) {
     sub.likes = (sub.likes || 0) + 1;
     const likeCountEl = document.getElementById('presentationLikeCount');
     if (likeCountEl) likeCountEl.textContent = `${sub.likes} ถูกใจ`;
-    renderTeamSwimlanes();
+    renderTeamColumns();
   }
 
   try {
@@ -875,7 +872,7 @@ async function handleSaveSettings(e) {
   }
 }
 
-// 13. Auto Poll with Swimlanes Sync
+// 13. Auto Poll with Columns Sync
 function startAutoPoll() {
   if (autoPollTimer) clearInterval(autoPollTimer);
   autoPollTimer = setInterval(() => {
@@ -895,7 +892,7 @@ function startAutoPoll() {
           currentSession.revealSubmissions = Boolean(data.revealSubmissions);
           allSubmissions = data.submissions || [];
           renderHeaderAndSession();
-          renderTeamSwimlanes();
+          renderTeamColumns();
         }
       })
       .catch(() => {});

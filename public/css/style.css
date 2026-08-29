@@ -93,47 +93,40 @@ body {
   box-shadow: 0 16px 32px -6px rgba(30, 90, 246, 0.12), 0 6px 14px -3px rgba(11, 27, 61, 0.05);
 }
 
-/* Team Swimlane Row (One Row Per Team) */
-.team-swimlane-row {
+/* Team Kanban Column (Left-to-Right Side-by-Side Columns) */
+.team-kanban-column {
   background: #FFFFFF;
-  border-radius: 1.25rem;
+  border-radius: 1.35rem;
   border: 2px solid #E2E8F0;
-  box-shadow: 0 6px 18px -3px rgba(30, 90, 246, 0.06);
-  transition: all 0.2s ease;
-  overflow: hidden;
-}
-
-.team-swimlane-row:hover {
-  box-shadow: 0 10px 24px -4px rgba(30, 90, 246, 0.1);
-}
-
-.swimlane-cards-track {
+  box-shadow: 0 8px 20px -3px rgba(30, 90, 246, 0.07);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 0.85rem;
-  overflow-x: auto;
-  padding: 0.75rem;
-  scroll-behavior: smooth;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 450px;
 }
 
-.swimlane-cards-track::-webkit-scrollbar {
-  height: 6px;
+.team-kanban-column:hover {
+  box-shadow: 0 14px 30px -4px rgba(30, 90, 246, 0.12);
+  transform: translateY(-2px);
 }
-.swimlane-cards-track::-webkit-scrollbar-thumb {
+
+.team-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  overflow-y: auto;
+  flex: 1;
+  max-height: calc(100vh - 220px);
+}
+
+.team-column-cards::-webkit-scrollbar {
+  width: 5px;
+}
+.team-column-cards::-webkit-scrollbar-thumb {
   background: #CBD5E1;
   border-radius: 9999px;
-}
-
-.swimlane-card-item {
-  width: 220px;
-  flex-shrink: 0;
-}
-
-@media (min-width: 640px) {
-  .swimlane-card-item {
-    width: 250px;
-  }
 }
 
 /* Segmented Control for Modes */
@@ -280,8 +273,8 @@ body {
 }
 
 .submission-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 16px 28px -4px rgba(30, 90, 246, 0.12), 0 6px 12px -4px rgba(11, 27, 61, 0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -4px rgba(30, 90, 246, 0.12), 0 4px 10px -3px rgba(11, 27, 61, 0.04);
 }
 
 /* Mystery Blur for Blind Mode */
