@@ -34,7 +34,9 @@ const DEFAULT_STORE = {
       { id: 'team-a', name: 'ทีม A (Alpha)', code: 'A', color: '#1E5AF6', bg: '#EFF6FF' },
       { id: 'team-b', name: 'ทีม B (Beta)', code: 'B', color: '#8B5CF6', bg: '#F5F3FF' },
       { id: 'team-c', name: 'ทีม C (Gamma)', code: 'C', color: '#10B981', bg: '#ECFDF5' },
-      { id: 'team-d', name: 'ทีม D (Delta)', code: 'D', color: '#F59E0B', bg: '#FFFBEB' }
+      { id: 'team-d', name: 'ทีม D (Delta)', code: 'D', color: '#F59E0B', bg: '#FFFBEB' },
+      { id: 'team-e', name: 'ทีม E (Epsilon)', code: 'E', color: '#EC4899', bg: '#FDF2F8' },
+      { id: 'team-f', name: 'ทีม F (Zeta)', code: 'F', color: '#06B6D4', bg: '#ECFEFF' }
     ],
     createdAt: new Date().toISOString()
   },
