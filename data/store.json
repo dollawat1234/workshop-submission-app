@@ -1,52 +1,52 @@
 {
   "session": {
     "id": "sess_1787555478396",
-    "title": "AI Workshop: มาทำงานร่วมกับ ChatGPT กัน",
-    "subtitle": "พื้นฐาน การใช้งาน และแนวคิดสำคัญ สำหรับทีมงานและผู้บริหาร",
-    "badge": "AI WORKSHOP | สำหรับองค์กร",
-    "topic": "ภารกิจ: ใช้ AI ยังไง? ส่งภาพผลงานและไอเดียการประยุกต์ใช้",
-    "description": "ให้แต่ละทีมออกแบบหรือสร้างสรรค์ผลงานด้วย AI แล้วอัปโหลดรูปภาพผลงานเพื่อร่วมแข่งขันและนำเสนอ",
+    "title": "AI Workshop: \u0e21\u0e32\u0e17\u0e33\u0e07\u0e32\u0e19\u0e23\u0e48\u0e27\u0e21\u0e01\u0e31\u0e1a ChatGPT \u0e01\u0e31\u0e19",
+    "subtitle": "\u0e1e\u0e37\u0e49\u0e19\u0e10\u0e32\u0e19 \u0e01\u0e32\u0e23\u0e43\u0e0a\u0e49\u0e07\u0e32\u0e19 \u0e41\u0e25\u0e30\u0e41\u0e19\u0e27\u0e04\u0e34\u0e14\u0e2a\u0e33\u0e04\u0e31\u0e0d \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e17\u0e35\u0e21\u0e07\u0e32\u0e19\u0e41\u0e25\u0e30\u0e1c\u0e39\u0e49\u0e1a\u0e23\u0e34\u0e2b\u0e32\u0e23",
+    "badge": "AI WORKSHOP | \u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2d\u0e07\u0e04\u0e4c\u0e01\u0e23",
+    "topic": "\u0e20\u0e32\u0e23\u0e01\u0e34\u0e08: \u0e43\u0e0a\u0e49 AI \u0e22\u0e31\u0e07\u0e44\u0e07? \u0e2a\u0e48\u0e07\u0e20\u0e32\u0e1e\u0e1c\u0e25\u0e07\u0e32\u0e19\u0e41\u0e25\u0e30\u0e44\u0e2d\u0e40\u0e14\u0e35\u0e22\u0e01\u0e32\u0e23\u0e1b\u0e23\u0e30\u0e22\u0e38\u0e01\u0e15\u0e4c\u0e43\u0e0a\u0e49",
+    "description": "\u0e43\u0e2b\u0e49\u0e41\u0e15\u0e48\u0e25\u0e30\u0e17\u0e35\u0e21\u0e2d\u0e2d\u0e01\u0e41\u0e1a\u0e1a\u0e2b\u0e23\u0e37\u0e2d\u0e2a\u0e23\u0e49\u0e32\u0e07\u0e2a\u0e23\u0e23\u0e04\u0e4c\u0e1c\u0e25\u0e07\u0e32\u0e19\u0e14\u0e49\u0e27\u0e22 AI \u0e41\u0e25\u0e49\u0e27\u0e2d\u0e31\u0e1b\u0e42\u0e2b\u0e25\u0e14\u0e23\u0e39\u0e1b\u0e20\u0e32\u0e1e\u0e1c\u0e25\u0e07\u0e32\u0e19\u0e40\u0e1e\u0e37\u0e48\u0e2d\u0e23\u0e48\u0e27\u0e21\u0e41\u0e02\u0e48\u0e07\u0e02\u0e31\u0e19\u0e41\u0e25\u0e30\u0e19\u0e33\u0e40\u0e2a\u0e19\u0e2d",
     "maxFileSizeMB": 25,
     "revealSubmissions": false,
     "teams": [
       {
         "id": "team-1",
-        "name": "ทีม 1",
+        "name": "\u0e17\u0e35\u0e21 1",
         "code": "1",
         "color": "#1E5AF6",
         "bg": "#EFF6FF"
       },
       {
         "id": "team-2",
-        "name": "ทีม 2",
+        "name": "\u0e17\u0e35\u0e21 2",
         "code": "2",
         "color": "#8B5CF6",
         "bg": "#F5F3FF"
       },
       {
         "id": "team-3",
-        "name": "ทีม 3",
+        "name": "\u0e17\u0e35\u0e21 3",
         "code": "3",
         "color": "#10B981",
         "bg": "#ECFDF5"
       },
       {
         "id": "team-4",
-        "name": "ทีม 4",
+        "name": "\u0e17\u0e35\u0e21 4",
         "code": "4",
         "color": "#F59E0B",
         "bg": "#FFFBEB"
       },
       {
         "id": "team-5",
-        "name": "ทีม 5",
+        "name": "\u0e17\u0e35\u0e21 5",
         "code": "5",
         "color": "#EC4899",
         "bg": "#FDF2F8"
       },
       {
         "id": "team-6",
-        "name": "ทีม 6",
+        "name": "\u0e17\u0e35\u0e21 6",
         "code": "6",
         "color": "#06B6D4",
         "bg": "#ECFEFF"
@@ -58,10 +58,10 @@
     {
       "id": "sub_1787555639085_s7n3zp",
       "teamId": "team-1",
-      "teamName": "ทีม 1",
+      "teamName": "\u0e17\u0e35\u0e21 1",
       "teamColor": "#1E5AF6",
       "teamBg": "#EFF6FF",
-      "submitterName": "น้องเมย์ (ทีม 1)",
+      "submitterName": "\u0e19\u0e49\u0e2d\u0e07\u0e40\u0e21\u0e22\u0e4c (\u0e17\u0e35\u0e21 1)",
       "title": "banner_chatgpt.png",
       "caption": "Prompt: Ultra detailed AI generated presentation slide for marketing workshop.",
       "filename": "1787555638676-784129-banner_chatgpt.png",
@@ -77,10 +77,10 @@
     {
       "id": "sub_1787557781875_pxibyw",
       "teamId": "team-2",
-      "teamName": "ทีม 2",
+      "teamName": "\u0e17\u0e35\u0e21 2",
       "teamColor": "#8B5CF6",
       "teamBg": "#F5F3FF",
-      "submitterName": "ต้น & นัท (ทีม 2)",
+      "submitterName": "\u0e15\u0e49\u0e19 & \u0e19\u0e31\u0e17 (\u0e17\u0e35\u0e21 2)",
       "title": "banner_ai_usage.png",
       "caption": "Tested on restored stream feed view.",
       "filename": "1787557775834-827115-banner_ai_usage.png",
@@ -96,10 +96,10 @@
     {
       "id": "sub_1787557967545_l6o5jo",
       "teamId": "team-3",
-      "teamName": "ทีม 3",
+      "teamName": "\u0e17\u0e35\u0e21 3",
       "teamColor": "#10B981",
       "teamBg": "#ECFDF5",
-      "submitterName": "เมย์ & วิน (ทีม 3)",
+      "submitterName": "\u0e40\u0e21\u0e22\u0e4c & \u0e27\u0e34\u0e19 (\u0e17\u0e35\u0e21 3)",
       "title": "banner_chatgpt.png",
       "caption": "Tested on Team Swimlane Row layout.",
       "filename": "1787557966823-328241-banner_chatgpt.png",
@@ -115,12 +115,12 @@
     {
       "id": "sub_1787558731991_tfqr62",
       "teamId": "team-4",
-      "teamName": "ทีม 4",
+      "teamName": "\u0e17\u0e35\u0e21 4",
       "teamColor": "#F59E0B",
       "teamBg": "#FFFBEB",
-      "submitterName": "สมาชิกในทีม",
+      "submitterName": "\u0e2a\u0e21\u0e32\u0e0a\u0e34\u0e01\u0e43\u0e19\u0e17\u0e35\u0e21",
       "title": "IMG_9901.jpeg",
-      "caption": "Test แมว",
+      "caption": "Test \u0e41\u0e21\u0e27",
       "filename": "1787558730522-656036-IMG_9901.jpeg",
       "originalname": "IMG_9901.jpeg",
       "mimetype": "image/jpeg",
@@ -131,5 +131,6 @@
       "createdAt": "2026-08-24T08:05:31.991Z",
       "updatedAt": null
     }
-  ]
+  ],
+  "last_synced_at": 1788150500000
 }
