@@ -64,7 +64,9 @@ async function syncFromGitHub() {
       headers: {
         'Authorization': `Bearer ${GITHUB_TOKEN}`,
         'User-Agent': 'TeamGame-CloudSync',
-        'Accept': 'application/vnd.github+json'
+        'Accept': 'application/vnd.github+json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
     });
     if (!res.ok) return null;
