@@ -7,7 +7,7 @@
     "topic": "ภารกิจ: ใช้ AI ยังไง? ส่งภาพผลงานและไอเดียการประยุกต์ใช้",
     "description": "ให้แต่ละทีมออกแบบหรือสร้างสรรค์ผลงานด้วย AI แล้วอัปโหลดรูปภาพผลงานเพื่อร่วมแข่งขันและนำเสนอ",
     "maxFileSizeMB": 25,
-    "revealSubmissions": true,
+    "revealSubmissions": false,
     "teams": [
       {
         "id": "team-1",
