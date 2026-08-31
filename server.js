@@ -10,6 +10,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isVercel = Boolean(process.env.VERCEL);
 
+// GitHub Cloud Persistence Configuration
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_REPO = process.env.GITHUB_REPO || 'dollawat1234/workshop-submission-app';
+const GITHUB_STORE_FILE = 'data/store.json';
+
 // Directories (Vercel uses /tmp for writable storage)
 const DATA_DIR = isVercel ? path.join(os.tmpdir(), 'workshop-data') : path.join(__dirname, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
@@ -19,7 +24,7 @@ const UPLOADS_DIR = isVercel ? path.join(os.tmpdir(), 'workshop-uploads') : path
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// Initial Default State
+// Initial Default State (6 Teams: ทีม 1 - ทีม 6)
 const DEFAULT_STORE = {
   session: {
     id: 'sess_' + Date.now(),
@@ -44,11 +49,110 @@ const DEFAULT_STORE = {
 };
 
 // ----------------------------------------------------
-// In-Memory Store with Async Mutex Write Queue
+// Multi-Tier Cloud Persistence Engine (Memory + Disk + GitHub API)
 // ----------------------------------------------------
 let memoryStore = null;
+let latestSha = null;
+let lastRemoteFetchTime = 0;
+const CACHE_TTL_MS = 2500; // 2.5 seconds cache
+let isRemoteSyncing = false;
 let isWriting = false;
 const writeQueue = [];
+
+async function syncFromGitHub() {
+  if (!GITHUB_TOKEN) return null;
+  try {
+    const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'User-Agent': 'TeamGame-CloudSync',
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    latestSha = data.sha;
+    const contentStr = Buffer.from(data.content, 'base64').toString('utf8');
+    const parsed = JSON.parse(contentStr);
+    lastRemoteFetchTime = Date.now();
+    return parsed;
+  } catch (err) {
+    console.error('Remote fetch error:', err.message);
+    return null;
+  }
+}
+
+async function syncToGitHub(dataToSave) {
+  if (!GITHUB_TOKEN || isRemoteSyncing) return;
+  isRemoteSyncing = true;
+  try {
+    if (!latestSha) {
+      await syncFromGitHub();
+    }
+    const b64Content = Buffer.from(JSON.stringify(dataToSave, null, 2)).toString('base64');
+    const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'User-Agent': 'TeamGame-CloudSync',
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: 'Cloud Sync: Realtime Submissions Update [skip ci]',
+        content: b64Content,
+        sha: latestSha
+      })
+    });
+    if (res.ok) {
+      const resData = await res.json();
+      if (resData.content && resData.content.sha) {
+        latestSha = resData.content.sha;
+      }
+      lastRemoteFetchTime = Date.now();
+    } else if (res.status === 409) {
+      await syncFromGitHub();
+      if (latestSha) {
+        const retryRes = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_TOKEN}`,
+            'User-Agent': 'TeamGame-CloudSync',
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: 'Cloud Sync: Realtime Submissions Update Retry [skip ci]',
+            content: b64Content,
+            sha: latestSha
+          })
+        });
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          if (retryData.content) latestSha = retryData.content.sha;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Remote push error:', err.message);
+  } finally {
+    isRemoteSyncing = false;
+  }
+}
+
+async function refreshStoreIfStale() {
+  const now = Date.now();
+  if (!memoryStore || (now - lastRemoteFetchTime > CACHE_TTL_MS)) {
+    const remoteData = await syncFromGitHub();
+    if (remoteData) {
+      memoryStore = remoteData;
+      return memoryStore;
+    }
+  }
+  return getStore();
+}
 
 function getStore() {
   if (memoryStore) return memoryStore;
@@ -77,6 +181,7 @@ function getStore() {
 
 function saveStore(data) {
   memoryStore = data;
+  syncToGitHub(data).catch(() => {});
   return new Promise((resolve, reject) => {
     writeQueue.push({ data, resolve, reject });
     processWriteQueue();
@@ -138,128 +243,99 @@ function getLocalNetworkIP() {
 // Multer Storage & Security Hardening
 // ----------------------------------------------------
 const ALLOWED_MIME_TYPES = [
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif',
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
   'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
   'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel',
   'text/plain',
-  'application/zip',
-  'application/x-zip-compressed'
+  'application/zip', 'application/x-zip-compressed'
 ];
 
 const ALLOWED_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.webp', '.gif',
-  '.pdf', '.ppt', '.pptx', '.doc', '.docx', '.txt', '.zip'
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif',
+  '.pdf', '.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls', '.txt', '.zip'
 ];
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  destination: (req, file, cb) => {
     cb(null, UPLOADS_DIR);
   },
-  filename: function (req, file, cb) {
-    const ext = (path.extname(file.originalname) || '').toLowerCase();
-    const rawBase = path.basename(file.originalname, ext);
-    const safeName = rawBase.replace(/[^a-zA-Z0-9_\u0E00-\u0E7F-]/g, '_').substring(0, 50) || 'file';
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e6);
-    cb(null, `${uniqueSuffix}-${safeName}${ext || '.bin'}`);
+  filename: (req, file, cb) => {
+    const safeOrigName = (file.originalname || 'upload').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const ext = path.extname(safeOrigName).toLowerCase() || '.bin';
+    const base = path.basename(safeOrigName, ext).substring(0, 40);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E6);
+    cb(null, `${uniqueSuffix}-${base}${ext}`);
   }
 });
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  const mime = (file.mimetype || '').toLowerCase();
+
+  const isExtAllowed = ALLOWED_EXTENSIONS.includes(ext);
+  const isMimeAllowed = ALLOWED_MIME_TYPES.includes(mime) || mime.startsWith('image/');
+
+  if (isExtAllowed || isMimeAllowed) {
+    cb(null, true);
+  } else {
+    cb(new Error(`ประเภทไฟล์ไม่ได้รับอนุญาต (${ext || mime}) กรุณาส่งรูปภาพ (.jpg, .png, .webp, .heic) หรือเอกสาร (.pdf, .pptx, .docx)`));
+  }
+};
 
 const upload = multer({
-  storage: storage,
+  storage,
+  fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024
-  },
-  fileFilter: function (req, file, cb) {
-    const ext = (path.extname(file.originalname) || '').toLowerCase();
-    const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
-    const isAllowedMime = ALLOWED_MIME_TYPES.includes(file.mimetype) || file.mimetype.startsWith('image/');
-
-    if (ext === '.svg' || ext === '.html' || ext === '.htm' || ext === '.js' || file.mimetype === 'image/svg+xml') {
-      return cb(new Error('ไม่อนุญาตให้อัปโหลดไฟล์ประเภทนี้เพื่อความปลอดภัย'));
-    }
-
-    if (isAllowedExt || isAllowedMime) {
-      cb(null, true);
-    } else {
-      cb(new Error('รองรับเฉพาะไฟล์รูปภาพ (JPG, PNG, WEBP) และเอกสาร (PDF, สไลด์)'));
-    }
+    fileSize: 25 * 1024 * 1024 // 25MB max
   }
 });
 
-// Middleware
+// ----------------------------------------------------
+// Express Middleware
+// ----------------------------------------------------
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
-// Security Headers
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  next();
-});
-
-// Serve static assets
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/materials', express.static(path.join(__dirname, 'public', 'materials')));
+// Static files
 app.use('/uploads', express.static(UPLOADS_DIR));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Direct Uploads Fallback Route (Supports local disk, /tmp, and Base64 store lookup)
-app.get('/uploads/:filename', (req, res) => {
-  const fname = req.params.filename;
-  const p1 = path.join(UPLOADS_DIR, fname);
-  const p2 = path.join(__dirname, 'uploads', fname);
-
-  if (fs.existsSync(p1)) return res.sendFile(p1);
-  if (fs.existsSync(p2)) return res.sendFile(p2);
-
-  // If not on disk, check if we have base64 in store
-  const store = getStore();
-  const sub = store.submissions.find(s => s.filename === fname);
-  if (sub && sub.fileUrl && sub.fileUrl.startsWith('data:')) {
-    const parts = sub.fileUrl.split(',');
-    const mimeMatch = parts[0].match(/:(.*?);/);
-    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    const buffer = Buffer.from(parts[1], 'base64');
-    res.setHeader('Content-Type', mime);
-    return res.send(buffer);
-  }
-
-  res.status(404).send('File not found');
+// HTML Routes
+app.get('/join', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'join.html'));
 });
 
-// ----------------------------------------------------
-// PAGE ROUTES
-// ----------------------------------------------------
+app.get('/files', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'files.html'));
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get(['/join', '/submit', '/p'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'join.html'));
-});
-
-app.get(['/files', '/materials', '/workshop-files', '/download'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'files.html'));
-});
-
 // ----------------------------------------------------
-// API ROUTES
+// API Routes
 // ----------------------------------------------------
 
-// 1. Network Info
+// 1. Network & Dynamic URL Info
 app.get('/api/network-info', (req, res) => {
   const ip = getLocalNetworkIP();
-  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
-  const host = req.headers['x-forwarded-host'] || req.get('host') || `localhost:${PORT}`;
-  const isPublic = host && !host.includes('localhost') && !host.includes('127.0.0.1');
+  const host = req.headers['x-forwarded-host'] || req.get('host') || `${ip}:${PORT}`;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const isPublic = isVercel || (!host.includes('localhost') && !host.includes('127.0.0.1') && !host.startsWith('192.168.') && !host.startsWith('10.') && !host.startsWith('172.'));
 
   let currentUrl = `${protocol}://${host}/join`;
-  let networkUrl = isPublic ? currentUrl : `http://${ip}:${PORT}/join`;
+  let networkUrl = `${protocol}://${host}/join`;
+
+  if (!isPublic && (host.includes('localhost') || host.includes('127.0.0.1'))) {
+    networkUrl = `http://${ip}:${PORT}/join`;
+  }
 
   res.json({
     ip,
@@ -273,8 +349,9 @@ app.get('/api/network-info', (req, res) => {
   });
 });
 
-// 2. Get Current Session Info
-app.get('/api/session', (req, res) => {
+// 2. Get Current Session Info (Refreshes from Cloud)
+app.get('/api/session', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
   const teamStats = store.session.teams.map(team => {
     const count = store.submissions.filter(s => s.teamId === team.id).length;
@@ -319,7 +396,7 @@ app.put('/api/session', async (req, res) => {
   res.json({ success: true, session: store.session });
 });
 
-// 4. Toggle Reveal Mode
+// 4. Toggle Reveal Mode (Speaker)
 app.post('/api/session/toggle-reveal', async (req, res) => {
   const store = getStore();
   if (typeof req.body.reveal === 'boolean') {
@@ -359,7 +436,8 @@ app.post('/api/session/reset', async (req, res) => {
 });
 
 // 6. Get Submissions List (Chronological: Newest First)
-app.get('/api/submissions', (req, res) => {
+app.get('/api/submissions', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
   const isSpeaker = req.query.view === 'speaker';
   const isRevealed = store.session.revealSubmissions;
@@ -378,8 +456,7 @@ app.get('/api/submissions', (req, res) => {
         fileType: sub.fileType,
         isRevealed: false,
         likes: sub.likes || 0,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt || null
+        createdAt: sub.createdAt
       };
     }
 
@@ -391,21 +468,21 @@ app.get('/api/submissions', (req, res) => {
 
   res.json({
     revealSubmissions: isRevealed,
-    total: submissions.length,
     submissions
   });
 });
 
 // 7. Get Single Submission Detail
-app.get('/api/submissions/:id', (req, res) => {
+app.get('/api/submissions/:id', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
-  const isSpeaker = req.query.view === 'speaker';
-  const isRevealed = store.session.revealSubmissions;
   const sub = store.submissions.find(s => s.id === req.params.id);
-
   if (!sub) {
     return res.status(404).json({ error: 'ไม่พบผลงานนี้' });
   }
+
+  const isSpeaker = req.query.view === 'speaker';
+  const isRevealed = store.session.revealSubmissions;
 
   if (!isSpeaker && !isRevealed) {
     return res.json({
@@ -414,10 +491,7 @@ app.get('/api/submissions/:id', (req, res) => {
         id: sub.id,
         teamId: sub.teamId,
         teamName: sub.teamName,
-        teamColor: sub.teamColor,
         submitterName: sub.submitterName,
-        title: sub.title || 'ส่งผลงานแล้ว',
-        fileType: sub.fileType,
         isRevealed: false,
         likes: sub.likes || 0,
         createdAt: sub.createdAt
@@ -425,18 +499,16 @@ app.get('/api/submissions/:id', (req, res) => {
     });
   }
 
-  res.json({
-    success: true,
-    submission: sub
-  });
+  res.json({ success: true, submission: sub });
 });
 
-// 8. Upload Submission (Vercel-Optimized with Base64 Image Persistence)
+// 8. Upload Submission (Multer + Base64 Cloud Persistence)
 app.post('/api/upload', (req, res) => {
-  upload.single('file')(req, res, async function (err) {
+  upload.single('file')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'ขนาดไฟล์เกินกำหนดสูงสุด (50MB)' });
+        const store = getStore();
+        return res.status(400).json({ error: `ขนาดไฟล์ใหญ่เกินกำหนด (สูงสุด ${store.session.maxFileSizeMB || 25}MB)` });
       }
       return res.status(400).json({ error: 'เกิดข้อผิดพลาดในการอัปโหลด: ' + err.message });
     } else if (err) {
@@ -444,6 +516,7 @@ app.post('/api/upload', (req, res) => {
     }
 
     try {
+      await refreshStoreIfStale();
       const store = getStore();
       const { teamId, submitterName, title, caption } = req.body;
 
@@ -521,18 +594,18 @@ app.post('/api/upload', (req, res) => {
   });
 });
 
-// 9. Update / Edit Submission (Speaker)
+// 9. Edit Submission (Update Details or Replace File)
 app.put('/api/submissions/:id', (req, res) => {
-  upload.single('file')(req, res, async function (err) {
-    if (err instanceof multer.MulterError) {
-      return res.status(400).json({ error: 'ขนาดไฟล์เกินกำหนด: ' + err.message });
-    } else if (err) {
-      return res.status(400).json({ error: err.message || 'รูปแบบไฟล์ไม่ถูกต้อง' });
+  upload.single('file')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
     }
 
     try {
+      await refreshStoreIfStale();
       const store = getStore();
       const sub = store.submissions.find(s => s.id === req.params.id);
+
       if (!sub) {
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: 'ไม่พบผลงานที่ต้องการแก้ไข' });
@@ -550,12 +623,12 @@ app.put('/api/submissions/:id', (req, res) => {
         }
       }
 
-      if (submitterName !== undefined) sub.submitterName = submitterName.trim() || 'สมาชิกในทีม';
+      if (submitterName !== undefined) sub.submitterName = submitterName.trim() || sub.submitterName;
       if (title !== undefined) sub.title = title.trim() || sub.title;
       if (caption !== undefined) sub.caption = caption.trim();
 
-      if (req.file) {
-        // Unlink old file if exists
+      // If user replaced file
+      if (req.file && req.file.size > 0) {
         if (sub.filename) {
           const oldPath = path.join(UPLOADS_DIR, sub.filename);
           if (fs.existsSync(oldPath)) {
@@ -565,19 +638,18 @@ app.put('/api/submissions/:id', (req, res) => {
 
         const isImage = req.file.mimetype ? req.file.mimetype.startsWith('image/') : false;
         let fileUrl = `/uploads/${req.file.filename}`;
-
         if (isImage && req.file.path && fs.existsSync(req.file.path)) {
           try {
             const fileBuf = fs.readFileSync(req.file.path);
             if (fileBuf.length <= 8 * 1024 * 1024) {
               fileUrl = `data:${req.file.mimetype || 'image/jpeg'};base64,${fileBuf.toString('base64')}`;
             }
-          } catch (bufErr) {}
+          } catch (e) {}
         }
 
         sub.filename = req.file.filename;
         sub.originalname = req.file.originalname;
-        sub.mimetype = req.file.mimetype || 'application/octet-stream';
+        sub.mimetype = req.file.mimetype;
         sub.fileType = isImage ? 'image' : 'document';
         sub.size = req.file.size;
         sub.fileUrl = fileUrl;
@@ -586,17 +658,21 @@ app.put('/api/submissions/:id', (req, res) => {
       sub.updatedAt = new Date().toISOString();
       await saveStore(store);
 
-      res.json({ success: true, message: 'แก้ไขข้อมูลสำเร็จแล้ว!', submission: sub });
+      res.json({
+        success: true,
+        message: 'แก้ไขข้อมูลผลงานเรียบร้อยแล้ว',
+        submission: sub
+      });
     } catch (e) {
-      console.error('Update error:', e);
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแก้ไขข้อมูล' });
+      console.error('Edit error:', e);
+      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแก้ไขผลงาน' });
     }
   });
 });
 
 // 10. Delete Submission
 app.delete('/api/submissions/:id', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
   const index = store.submissions.findIndex(s => s.id === req.params.id);
 
@@ -604,20 +680,23 @@ app.delete('/api/submissions/:id', async (req, res) => {
     return res.status(404).json({ error: 'ไม่พบผลงานที่ต้องการลบ' });
   }
 
-  const [deleted] = store.submissions.splice(index, 1);
-  if (deleted && deleted.filename) {
-    const filePath = path.join(UPLOADS_DIR, deleted.filename);
-    if (fs.existsSync(filePath)) {
-      try { fs.unlinkSync(filePath); } catch (e) {}
+  const sub = store.submissions[index];
+  if (sub.filename) {
+    const p = path.join(UPLOADS_DIR, sub.filename);
+    if (fs.existsSync(p)) {
+      try { fs.unlinkSync(p); } catch (err) {}
     }
   }
 
+  store.submissions.splice(index, 1);
   await saveStore(store);
+
   res.json({ success: true, message: 'ลบผลงานเรียบร้อยแล้ว' });
 });
 
 // 11. Like Submission
 app.post('/api/submissions/:id/like', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
 
@@ -632,7 +711,8 @@ app.post('/api/submissions/:id/like', async (req, res) => {
 });
 
 // 12. Export ZIP
-app.get('/api/export/zip', (req, res) => {
+app.get('/api/export/zip', async (req, res) => {
+  await refreshStoreIfStale();
   const store = getStore();
   const archive = archiver('zip', { zlib: { level: 9 } });
 
