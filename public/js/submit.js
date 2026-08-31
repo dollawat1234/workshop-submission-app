@@ -556,7 +556,7 @@ async function loadMySubmissions() {
   }
 
   try {
-    const res = await fetch('/api/submissions');
+    const res = await fetch(`/api/submissions?teamId=${encodeURIComponent(selectedTeamId)}&_t=${Date.now()}`);
     const data = await res.json();
     const mySubmissions = (data.submissions || []).filter(s => s.teamId === selectedTeamId);
 

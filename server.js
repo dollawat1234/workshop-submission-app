@@ -419,12 +419,14 @@ app.post('/api/session/reset', async (req, res) => {
 app.get('/api/submissions', async (req, res) => {
   const store = await getFreshStore();
   const isSpeaker = req.query.view === 'speaker';
+  const queryTeamId = req.query.teamId;
   const isRevealed = store.session.revealSubmissions;
 
   const sorted = [...store.submissions].reverse();
 
   const submissions = sorted.map(sub => {
-    if (!isSpeaker && !isRevealed) {
+    const canSee = isSpeaker || isRevealed || (queryTeamId && sub.teamId === queryTeamId);
+    if (!canSee) {
       return {
         id: sub.id,
         teamId: sub.teamId,
