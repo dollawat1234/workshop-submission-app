@@ -81,8 +81,8 @@ async function fetchAllData() {
 
   try {
     const [sessionRes, subsRes] = await Promise.all([
-      fetch('/api/session'),
-      fetch('/api/submissions?view=speaker')
+      fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store' })
     ]);
 
     if (!sessionRes.ok || !subsRes.ok) throw new Error('Network error');
@@ -444,13 +444,21 @@ async function likeSubmission(id) {
 // 7. Delete Submission
 async function deleteSubmission(id) {
   if (!confirm('คุณต้องการลบผลงานนี้ใช่หรือไม่?')) return;
+  
+  // 1. Optimistic removal: Immediately remove from client UI
+  allSubmissions = allSubmissions.filter(s => s.id !== id);
+  renderHeaderAndSession();
+  renderTeamColumns();
+
   try {
-    const res = await fetch(`/api/submissions/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      fetchAllData();
-    }
+    const res = await fetch(`/api/submissions/${id}?_t=${Date.now()}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'ไม่สามารถลบผลงานได้');
+    await fetchAllData();
   } catch (e) {
-    alert('ไม่สามารถลบผลงานได้');
+    console.error('Error deleting submission:', e);
+    alert('ไม่สามารถลบผลงานได้: ' + e.message);
+    await fetchAllData();
   }
 }
 
@@ -710,15 +718,19 @@ function setupEventListeners() {
   if (resetSubmissionsBtn) {
     resetSubmissionsBtn.addEventListener('click', async () => {
       if (!confirm('⚠️ คำเตือน: คุณต้องการรีเซ็ตผลงานทั้งหมดเพื่อเริ่มรอบใหม่ใช่หรือไม่? (ระบบจะสำรองข้อมูลเดิมไว้ให้อัตโนมัติ)')) return;
+      allSubmissions = [];
+      renderHeaderAndSession();
+      renderTeamColumns();
       try {
-        const res = await fetch('/api/session/reset', { method: 'POST' });
+        const res = await fetch(`/api/session/reset?_t=${Date.now()}`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
           alert(data.message);
-          fetchAllData();
+          await fetchAllData();
         }
       } catch (e) {
         alert('ไม่สามารถรีเซ็ตได้');
+        await fetchAllData();
       }
     });
   }
@@ -790,72 +802,94 @@ function openSettingsModal() {
   document.getElementById('settingBadge').value = currentSession.badge || '';
   document.getElementById('settingMaxFileSize').value = currentSession.maxFileSizeMB || 25;
 
-  const container = document.getElementById('settingsTeamsContainer');
-  container.innerHTML = '';
-
-  (currentSession.teams || []).forEach(team => {
-    addTeamInputRow(team);
-  });
-
+  renderSettingsTeamRows();
   document.getElementById('settingsModal').classList.remove('hidden');
 }
 
-function addTeamInputRow(teamData = null) {
-  const container = document.getElementById('settingsTeamsContainer');
-  const count = container.children.length;
-  const nextNum = count + 1;
+function renderSettingsTeamRows() {
+  const container = document.getElementById('teamsSettingContainer');
+  if (!container) return;
+  container.innerHTML = '';
 
-  const team = teamData || {
-    id: `team-${nextNum}`,
-    name: `ทีม ${nextNum}`,
-    code: String(nextNum),
-    color: '#1E5AF6',
-    bg: '#EFF6FF'
-  };
+  const teams = currentSession.teams || [];
+  teams.forEach((team, idx) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2 team-setting-row bg-slate-50 p-2 rounded-xl border border-slate-200';
+    row.innerHTML = `
+      <input type="text" class="setting-team-name flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-brand-500" value="${escapeHtml(team.name)}" placeholder="ชื่อทีม">
+      <input type="color" class="setting-team-color w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5" value="${team.color || '#1E5AF6'}">
+      <button type="button" class="remove-team-setting-btn p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="ลบทีมนี้">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+      </button>
+    `;
+
+    const removeBtn = row.querySelector('.remove-team-setting-btn');
+    removeBtn.addEventListener('click', () => {
+      const allRows = container.querySelectorAll('.team-setting-row');
+      if (allRows.length <= 1) {
+        alert('ต้องมีอย่างน้อย 1 ทีม');
+        return;
+      }
+      row.remove();
+    });
+
+    container.appendChild(row);
+  });
+}
+
+function addTeamInputRow() {
+  const container = document.getElementById('teamsSettingContainer');
+  if (!container) return;
+  const currentCount = container.querySelectorAll('.team-setting-row').length;
+  const newIdx = currentCount + 1;
+  const palette = ['#1E5AF6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#6366F1', '#14B8A6'];
+  const color = palette[(newIdx - 1) % palette.length];
 
   const row = document.createElement('div');
-  row.className = 'team-input-row flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200';
+  row.className = 'flex items-center gap-2 team-setting-row bg-slate-50 p-2 rounded-xl border border-slate-200';
   row.innerHTML = `
-    <input type="text" class="team-code-input w-12 px-2 py-1 text-center font-bold rounded border border-slate-300 text-xs" value="${escapeHtml(team.code)}" placeholder="โค้ด">
-    <input type="text" class="team-name-input flex-1 px-2 py-1 font-bold rounded border border-slate-300 text-xs" value="${escapeHtml(team.name)}" placeholder="ชื่อทีม">
-    <input type="color" class="team-color-input w-8 h-8 rounded cursor-pointer border-0 p-0" value="${team.color || '#1E5AF6'}">
-    <button type="button" class="remove-team-btn p-1 text-slate-400 hover:text-rose-500">
-      <i data-lucide="x" class="w-4 h-4"></i>
+    <input type="text" class="setting-team-name flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-brand-500" value="ทีม ${newIdx}" placeholder="ชื่อทีม">
+    <input type="color" class="setting-team-color w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5" value="${color}">
+    <button type="button" class="remove-team-setting-btn p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors" title="ลบทีมนี้">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
     </button>
   `;
 
-  row.querySelector('.remove-team-btn').addEventListener('click', () => {
+  const removeBtn = row.querySelector('.remove-team-setting-btn');
+  removeBtn.addEventListener('click', () => {
+    const allRows = container.querySelectorAll('.team-setting-row');
+    if (allRows.length <= 1) {
+      alert('ต้องมีอย่างน้อย 1 ทีม');
+      return;
+    }
     row.remove();
   });
 
   container.appendChild(row);
-  if (window.lucide) lucide.createIcons();
 }
 
 async function handleSaveSettings(e) {
   e.preventDefault();
-
   const title = document.getElementById('settingTitle').value.trim();
   const badge = document.getElementById('settingBadge').value.trim();
-  const maxFileSizeMB = document.getElementById('settingMaxFileSize').value;
+  const maxFileSizeMB = parseInt(document.getElementById('settingMaxFileSize').value) || 25;
 
-  const rows = document.querySelectorAll('.team-input-row');
+  const rows = document.querySelectorAll('.team-setting-row');
   const teams = [];
-  rows.forEach((row, idx) => {
-    const code = row.querySelector('.team-code-input').value.trim() || String(idx + 1);
-    const name = row.querySelector('.team-name-input').value.trim() || `ทีม ${code}`;
-    const color = row.querySelector('.team-color-input').value || '#1E5AF6';
+  rows.forEach((r, idx) => {
+    const name = r.querySelector('.setting-team-name').value.trim() || `ทีม ${idx + 1}`;
+    const color = r.querySelector('.setting-team-color').value || '#1E5AF6';
     teams.push({
       id: `team-${idx + 1}`,
-      name,
-      code,
-      color,
-      bg: '#EFF6FF'
+      name: name,
+      code: String(idx + 1),
+      color: color,
+      bg: color + '15'
     });
   });
 
   try {
-    const res = await fetch('/api/session', {
+    const res = await fetch(`/api/session?_t=${Date.now()}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, badge, maxFileSizeMB, teams })
@@ -873,6 +907,7 @@ async function handleSaveSettings(e) {
 }
 
 // 13. Auto Poll with Columns Sync
+// 13. Auto Poll with Columns Sync
 function startAutoPoll() {
   if (autoPollTimer) clearInterval(autoPollTimer);
   autoPollTimer = setInterval(() => {
@@ -882,21 +917,24 @@ function startAutoPoll() {
       return;
     }
 
-    fetch('/api/submissions?view=speaker')
+    fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         const revealChanged = Boolean(data.revealSubmissions) !== Boolean(currentSession.revealSubmissions);
-        const countChanged = data.submissions && (data.submissions.length !== allSubmissions.length);
+        const incomingSubs = data.submissions || [];
+        const incomingIds = incomingSubs.map(s => s.id + (s.likes || 0)).join('|');
+        const currentIds = allSubmissions.map(s => s.id + (s.likes || 0)).join('|');
+        const itemsChanged = incomingIds !== currentIds;
 
-        if (revealChanged || countChanged) {
+        if (revealChanged || itemsChanged) {
           currentSession.revealSubmissions = Boolean(data.revealSubmissions);
-          allSubmissions = data.submissions || [];
+          allSubmissions = incomingSubs;
           renderHeaderAndSession();
           renderTeamColumns();
         }
       })
       .catch(() => {});
-  }, 3500);
+  }, 2500);
 }
 
 // Helpers
