@@ -54,7 +54,7 @@ const DEFAULT_STORE = {
 let memoryStore = null;
 let latestSha = null;
 let lastRemoteFetchTime = 0;
-const CACHE_TTL_MS = 2500; // 2.5 seconds cache
+const CACHE_TTL_MS = 1000; // 1 second cache for instant fresh reads
 let isRemoteSyncing = false;
 let isWriting = false;
 const writeQueue = [];
@@ -62,7 +62,7 @@ const writeQueue = [];
 async function syncFromGitHub() {
   if (!GITHUB_TOKEN) return null;
   try {
-    const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
+    const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}?t=${Date.now()}`;
     const res = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${GITHUB_TOKEN}`,
@@ -83,63 +83,49 @@ async function syncFromGitHub() {
   }
 }
 
-async function syncToGitHub(dataToSave) {
-  if (!GITHUB_TOKEN || isRemoteSyncing) return;
-  isRemoteSyncing = true;
-  try {
-    if (!latestSha) {
-      await syncFromGitHub();
-    }
-    const b64Content = Buffer.from(JSON.stringify(dataToSave, null, 2)).toString('base64');
-    const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'User-Agent': 'TeamGame-CloudSync',
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: 'Cloud Sync: Realtime Submissions Update [skip ci]',
-        content: b64Content,
-        sha: latestSha
-      })
-    });
-    if (res.ok) {
-      const resData = await res.json();
-      if (resData.content && resData.content.sha) {
-        latestSha = resData.content.sha;
-      }
-      lastRemoteFetchTime = Date.now();
-    } else if (res.status === 409) {
-      await syncFromGitHub();
-      if (latestSha) {
-        const retryRes = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${GITHUB_TOKEN}`,
-            'User-Agent': 'TeamGame-CloudSync',
-            'Accept': 'application/vnd.github+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: 'Cloud Sync: Realtime Submissions Update Retry [skip ci]',
-            content: b64Content,
-            sha: latestSha
-          })
-        });
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          if (retryData.content) latestSha = retryData.content.sha;
+async function syncToGitHub(dataToSave, maxRetries = 3) {
+  if (!GITHUB_TOKEN) return false;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const remote = await syncFromGitHub();
+      const shaToUse = (remote && latestSha) ? latestSha : latestSha;
+
+      const b64Content = Buffer.from(JSON.stringify(dataToSave, null, 2)).toString('base64');
+      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${GITHUB_TOKEN}`,
+          'User-Agent': 'TeamGame-CloudSync',
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: `Cloud Sync: Submissions Update [skip ci] (${Date.now()})`,
+          content: b64Content,
+          sha: shaToUse
+        })
+      });
+
+      if (res.ok) {
+        const resData = await res.json();
+        if (resData.content && resData.content.sha) {
+          latestSha = resData.content.sha;
         }
+        lastRemoteFetchTime = Date.now();
+        return true;
       }
+
+      if (res.status === 409) {
+        await new Promise(r => setTimeout(r, 200 * attempt));
+        continue;
+      }
+    } catch (err) {
+      console.error(`Sync attempt ${attempt} error:`, err.message);
+      await new Promise(r => setTimeout(r, 200 * attempt));
     }
-  } catch (err) {
-    console.error('Remote push error:', err.message);
-  } finally {
-    isRemoteSyncing = false;
   }
+  return false;
 }
 
 async function refreshStoreIfStale() {
@@ -179,31 +165,20 @@ function getStore() {
   return memoryStore;
 }
 
-function saveStore(data) {
+async function saveStore(data) {
   memoryStore = data;
-  syncToGitHub(data).catch(() => {});
-  return new Promise((resolve, reject) => {
-    writeQueue.push({ data, resolve, reject });
-    processWriteQueue();
-  });
-}
-
-async function processWriteQueue() {
-  if (isWriting || writeQueue.length === 0) return;
-  isWriting = true;
-  const current = writeQueue.shift();
   try {
     const tmpPath = path.join(DATA_DIR, `store_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.tmp`);
-    await fs.promises.writeFile(tmpPath, JSON.stringify(current.data, null, 2), 'utf8');
+    await fs.promises.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf8');
     await fs.promises.rename(tmpPath, STORE_PATH);
-    current.resolve(true);
   } catch (err) {
-    console.error('Error in write queue:', err);
-    current.reject(err);
-  } finally {
-    isWriting = false;
-    processWriteQueue();
+    console.error('Local save error:', err);
   }
+
+  if (GITHUB_TOKEN) {
+    await syncToGitHub(data);
+  }
+  return true;
 }
 
 // ----------------------------------------------------
