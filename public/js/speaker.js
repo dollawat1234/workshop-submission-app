@@ -803,12 +803,12 @@ function openSettingsModal() {
 function addTeamInputRow(teamData = null) {
   const container = document.getElementById('settingsTeamsContainer');
   const count = container.children.length;
-  const nextChar = String.fromCharCode(65 + count);
+  const nextNum = count + 1;
 
   const team = teamData || {
-    id: `team-${String.fromCharCode(97 + count)}`,
-    name: `ทีม ${nextChar}`,
-    code: nextChar,
+    id: `team-${nextNum}`,
+    name: `ทีม ${nextNum}`,
+    code: String(nextNum),
     color: '#1E5AF6',
     bg: '#EFF6FF'
   };
@@ -842,11 +842,11 @@ async function handleSaveSettings(e) {
   const rows = document.querySelectorAll('.team-input-row');
   const teams = [];
   rows.forEach((row, idx) => {
-    const code = row.querySelector('.team-code-input').value.trim() || String.fromCharCode(65 + idx);
+    const code = row.querySelector('.team-code-input').value.trim() || String(idx + 1);
     const name = row.querySelector('.team-name-input').value.trim() || `ทีม ${code}`;
     const color = row.querySelector('.team-color-input').value || '#1E5AF6';
     teams.push({
-      id: `team-${String.fromCharCode(97 + idx)}`,
+      id: `team-${idx + 1}`,
       name,
       code,
       color,

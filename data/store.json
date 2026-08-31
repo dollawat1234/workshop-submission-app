@@ -10,44 +10,44 @@
     "revealSubmissions": false,
     "teams": [
       {
-        "id": "team-a",
-        "name": "ทีม A (Alpha)",
-        "code": "A",
+        "id": "team-1",
+        "name": "ทีม 1",
+        "code": "1",
         "color": "#1E5AF6",
         "bg": "#EFF6FF"
       },
       {
-        "id": "team-b",
-        "name": "ทีม B (Beta)",
-        "code": "B",
+        "id": "team-2",
+        "name": "ทีม 2",
+        "code": "2",
         "color": "#8B5CF6",
         "bg": "#F5F3FF"
       },
       {
-        "id": "team-c",
-        "name": "ทีม C (Gamma)",
-        "code": "C",
+        "id": "team-3",
+        "name": "ทีม 3",
+        "code": "3",
         "color": "#10B981",
         "bg": "#ECFDF5"
       },
       {
-        "id": "team-d",
-        "name": "ทีม D (Delta)",
-        "code": "D",
+        "id": "team-4",
+        "name": "ทีม 4",
+        "code": "4",
         "color": "#F59E0B",
         "bg": "#FFFBEB"
       },
       {
-        "id": "team-e",
-        "name": "ทีม E (Epsilon)",
-        "code": "E",
+        "id": "team-5",
+        "name": "ทีม 5",
+        "code": "5",
         "color": "#EC4899",
         "bg": "#FDF2F8"
       },
       {
-        "id": "team-f",
-        "name": "ทีม F (Zeta)",
-        "code": "F",
+        "id": "team-6",
+        "name": "ทีม 6",
+        "code": "6",
         "color": "#06B6D4",
         "bg": "#ECFEFF"
       }
@@ -57,11 +57,11 @@
   "submissions": [
     {
       "id": "sub_1787555639085_s7n3zp",
-      "teamId": "team-a",
-      "teamName": "ทีม A (Alpha)",
+      "teamId": "team-1",
+      "teamName": "ทีม 1",
       "teamColor": "#1E5AF6",
       "teamBg": "#EFF6FF",
-      "submitterName": "น้องเมย์ (ทีม A รอบที่ 2)",
+      "submitterName": "น้องเมย์ (ทีม 1)",
       "title": "banner_chatgpt.png",
       "caption": "Prompt: Ultra detailed AI generated presentation slide for marketing workshop.",
       "filename": "1787555638676-784129-banner_chatgpt.png",
@@ -76,11 +76,11 @@
     },
     {
       "id": "sub_1787557781875_pxibyw",
-      "teamId": "team-b",
-      "teamName": "ทีม B (Beta)",
+      "teamId": "team-2",
+      "teamName": "ทีม 2",
       "teamColor": "#8B5CF6",
       "teamBg": "#F5F3FF",
-      "submitterName": "ต้น & นัท (ทีม B)",
+      "submitterName": "ต้น & นัท (ทีม 2)",
       "title": "banner_ai_usage.png",
       "caption": "Tested on restored stream feed view.",
       "filename": "1787557775834-827115-banner_ai_usage.png",
@@ -95,11 +95,11 @@
     },
     {
       "id": "sub_1787557967545_l6o5jo",
-      "teamId": "team-c",
-      "teamName": "ทีม C (Gamma)",
+      "teamId": "team-3",
+      "teamName": "ทีม 3",
       "teamColor": "#10B981",
       "teamBg": "#ECFDF5",
-      "submitterName": "เมย์ & วิน (ทีม C)",
+      "submitterName": "เมย์ & วิน (ทีม 3)",
       "title": "banner_chatgpt.png",
       "caption": "Tested on Team Swimlane Row layout.",
       "filename": "1787557966823-328241-banner_chatgpt.png",
@@ -114,8 +114,8 @@
     },
     {
       "id": "sub_1787558731991_tfqr62",
-      "teamId": "team-d",
-      "teamName": "ทีม D (Delta)",
+      "teamId": "team-4",
+      "teamName": "ทีม 4",
       "teamColor": "#F59E0B",
       "teamBg": "#FFFBEB",
       "submitterName": "สมาชิกในทีม",

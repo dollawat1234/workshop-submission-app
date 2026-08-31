@@ -31,12 +31,12 @@ const DEFAULT_STORE = {
     maxFileSizeMB: 25,
     revealSubmissions: false,
     teams: [
-      { id: 'team-a', name: 'ทีม A (Alpha)', code: 'A', color: '#1E5AF6', bg: '#EFF6FF' },
-      { id: 'team-b', name: 'ทีม B (Beta)', code: 'B', color: '#8B5CF6', bg: '#F5F3FF' },
-      { id: 'team-c', name: 'ทีม C (Gamma)', code: 'C', color: '#10B981', bg: '#ECFDF5' },
-      { id: 'team-d', name: 'ทีม D (Delta)', code: 'D', color: '#F59E0B', bg: '#FFFBEB' },
-      { id: 'team-e', name: 'ทีม E (Epsilon)', code: 'E', color: '#EC4899', bg: '#FDF2F8' },
-      { id: 'team-f', name: 'ทีม F (Zeta)', code: 'F', color: '#06B6D4', bg: '#ECFEFF' }
+      { id: 'team-1', name: 'ทีม 1', code: '1', color: '#1E5AF6', bg: '#EFF6FF' },
+      { id: 'team-2', name: 'ทีม 2', code: '2', color: '#8B5CF6', bg: '#F5F3FF' },
+      { id: 'team-3', name: 'ทีม 3', code: '3', color: '#10B981', bg: '#ECFDF5' },
+      { id: 'team-4', name: 'ทีม 4', code: '4', color: '#F59E0B', bg: '#FFFBEB' },
+      { id: 'team-5', name: 'ทีม 5', code: '5', color: '#EC4899', bg: '#FDF2F8' },
+      { id: 'team-6', name: 'ทีม 6', code: '6', color: '#06B6D4', bg: '#ECFEFF' }
     ],
     createdAt: new Date().toISOString()
   },
@@ -307,9 +307,9 @@ app.put('/api/session', async (req, res) => {
 
   if (Array.isArray(teams) && teams.length > 0) {
     store.session.teams = teams.map((t, idx) => ({
-      id: t.id || `team-${String.fromCharCode(97 + idx)}`,
-      name: t.name ? t.name.trim() : `ทีม ${String.fromCharCode(65 + idx)}`,
-      code: t.code ? t.code.trim() : String.fromCharCode(65 + idx),
+      id: t.id || `team-${idx + 1}`,
+      name: t.name ? t.name.trim() : `ทีม ${idx + 1}`,
+      code: t.code ? t.code.trim() : String(idx + 1),
       color: t.color || '#1E5AF6',
       bg: t.bg || '#EFF6FF'
     }));
