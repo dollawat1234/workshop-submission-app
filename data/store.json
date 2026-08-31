@@ -7,7 +7,7 @@
     "topic": "ภารกิจ: ใช้ AI ยังไง? ส่งภาพผลงานและไอเดียการประยุกต์ใช้",
     "description": "ให้แต่ละทีมออกแบบหรือสร้างสรรค์ผลงานด้วย AI แล้วอัปโหลดรูปภาพผลงานเพื่อร่วมแข่งขันและนำเสนอ",
     "maxFileSizeMB": 25,
-    "revealSubmissions": true,
+    "revealSubmissions": false,
     "teams": [
       {
         "id": "team-1",
@@ -55,25 +55,6 @@
     "createdAt": "2026-08-23T17:30:24.411Z"
   },
   "submissions": [
-    {
-      "id": "sub_1787555639085_s7n3zp",
-      "teamId": "team-1",
-      "teamName": "ทีม 1",
-      "teamColor": "#1E5AF6",
-      "teamBg": "#EFF6FF",
-      "submitterName": "น้องเมย์ (ทีม 1)",
-      "title": "banner_chatgpt.png",
-      "caption": "Prompt: Ultra detailed AI generated presentation slide for marketing workshop.",
-      "filename": "1787555638676-784129-banner_chatgpt.png",
-      "originalname": "banner_chatgpt.png",
-      "mimetype": "image/png",
-      "fileType": "image",
-      "size": 734621,
-      "fileUrl": "/uploads/1787555638676-784129-banner_chatgpt.png",
-      "likes": 0,
-      "createdAt": "2026-08-24T07:13:59.085Z",
-      "updatedAt": null
-    },
     {
       "id": "sub_1787557781875_pxibyw",
       "teamId": "team-2",
