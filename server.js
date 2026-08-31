@@ -49,15 +49,10 @@ const DEFAULT_STORE = {
 };
 
 // ----------------------------------------------------
-// Multi-Tier Cloud Persistence Engine (Memory + Disk + GitHub API)
+// Multi-Tier Cloud Persistence Engine (Direct Cloud Sync)
 // ----------------------------------------------------
 let memoryStore = null;
 let latestSha = null;
-let lastRemoteFetchTime = 0;
-const CACHE_TTL_MS = 1000; // 1 second cache for instant fresh reads
-let isRemoteSyncing = false;
-let isWriting = false;
-const writeQueue = [];
 
 async function syncFromGitHub() {
   if (!GITHUB_TOKEN) return null;
@@ -75,7 +70,6 @@ async function syncFromGitHub() {
     latestSha = data.sha;
     const contentStr = Buffer.from(data.content, 'base64').toString('utf8');
     const parsed = JSON.parse(contentStr);
-    lastRemoteFetchTime = Date.now();
     return parsed;
   } catch (err) {
     console.error('Remote fetch error:', err.message);
@@ -112,7 +106,6 @@ async function syncToGitHub(dataToSave, maxRetries = 3) {
         if (resData.content && resData.content.sha) {
           latestSha = resData.content.sha;
         }
-        lastRemoteFetchTime = Date.now();
         return true;
       }
 
@@ -128,9 +121,8 @@ async function syncToGitHub(dataToSave, maxRetries = 3) {
   return false;
 }
 
-async function refreshStoreIfStale() {
-  const now = Date.now();
-  if (!memoryStore || (now - lastRemoteFetchTime > CACHE_TTL_MS)) {
+async function getFreshStore() {
+  if (GITHUB_TOKEN) {
     const remoteData = await syncFromGitHub();
     if (remoteData) {
       memoryStore = remoteData;
@@ -324,10 +316,9 @@ app.get('/api/network-info', (req, res) => {
   });
 });
 
-// 2. Get Current Session Info (Refreshes from Cloud)
+// 2. Get Current Session Info (Fresh from Cloud)
 app.get('/api/session', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const teamStats = store.session.teams.map(team => {
     const count = store.submissions.filter(s => s.teamId === team.id).length;
     return {
@@ -348,7 +339,7 @@ app.get('/api/session', async (req, res) => {
 // 3. Update Session Settings (Speaker)
 app.put('/api/session', async (req, res) => {
   const { title, subtitle, badge, topic, description, maxFileSizeMB, teams } = req.body;
-  const store = getStore();
+  const store = await getFreshStore();
 
   if (title) store.session.title = title.trim();
   if (subtitle !== undefined) store.session.subtitle = subtitle.trim();
@@ -373,7 +364,7 @@ app.put('/api/session', async (req, res) => {
 
 // 4. Toggle Reveal Mode (Speaker)
 app.post('/api/session/toggle-reveal', async (req, res) => {
-  const store = getStore();
+  const store = await getFreshStore();
   if (typeof req.body.reveal === 'boolean') {
     store.session.revealSubmissions = req.body.reveal;
   } else {
@@ -385,7 +376,7 @@ app.post('/api/session/toggle-reveal', async (req, res) => {
 
 // 5. Reset Submissions
 app.post('/api/session/reset', async (req, res) => {
-  const store = getStore();
+  const store = await getFreshStore();
   const backupFilename = `backup_submissions_${Date.now()}.json`;
   try {
     fs.writeFileSync(path.join(DATA_DIR, backupFilename), JSON.stringify(store.submissions, null, 2));
@@ -412,8 +403,7 @@ app.post('/api/session/reset', async (req, res) => {
 
 // 6. Get Submissions List (Chronological: Newest First)
 app.get('/api/submissions', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const isSpeaker = req.query.view === 'speaker';
   const isRevealed = store.session.revealSubmissions;
 
@@ -449,8 +439,7 @@ app.get('/api/submissions', async (req, res) => {
 
 // 7. Get Single Submission Detail
 app.get('/api/submissions/:id', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
   if (!sub) {
     return res.status(404).json({ error: 'ไม่พบผลงานนี้' });
@@ -482,7 +471,7 @@ app.post('/api/upload', (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        const store = getStore();
+        const store = await getFreshStore();
         return res.status(400).json({ error: `ขนาดไฟล์ใหญ่เกินกำหนด (สูงสุด ${store.session.maxFileSizeMB || 25}MB)` });
       }
       return res.status(400).json({ error: 'เกิดข้อผิดพลาดในการอัปโหลด: ' + err.message });
@@ -491,8 +480,7 @@ app.post('/api/upload', (req, res) => {
     }
 
     try {
-      await refreshStoreIfStale();
-      const store = getStore();
+      const store = await getFreshStore();
       const { teamId, submitterName, title, caption } = req.body;
 
       if (!teamId) {
@@ -577,8 +565,7 @@ app.put('/api/submissions/:id', (req, res) => {
     }
 
     try {
-      await refreshStoreIfStale();
-      const store = getStore();
+      const store = await getFreshStore();
       const sub = store.submissions.find(s => s.id === req.params.id);
 
       if (!sub) {
@@ -647,8 +634,7 @@ app.put('/api/submissions/:id', (req, res) => {
 
 // 10. Delete Submission
 app.delete('/api/submissions/:id', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const index = store.submissions.findIndex(s => s.id === req.params.id);
 
   if (index === -1) {
@@ -671,8 +657,7 @@ app.delete('/api/submissions/:id', async (req, res) => {
 
 // 11. Like Submission
 app.post('/api/submissions/:id/like', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
 
   if (!sub) {
@@ -687,8 +672,7 @@ app.post('/api/submissions/:id/like', async (req, res) => {
 
 // 12. Export ZIP
 app.get('/api/export/zip', async (req, res) => {
-  await refreshStoreIfStale();
-  const store = getStore();
+  const store = await getFreshStore();
   const archive = archiver('zip', { zlib: { level: 9 } });
 
   res.setHeader('Content-Type', 'application/zip');
