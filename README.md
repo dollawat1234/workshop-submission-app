@@ -48,3 +48,12 @@ npm start
 
 - **หน้าส่งงาน (มือถือ)**: `http://localhost:3000` (หรือ `http://192.168.1.X:3000`)
 - **หน้าจอวิทยากร (คอมพิวเตอร์ / โปรเจกเตอร์)**: `http://localhost:3000/speaker.html`
+
+### การตั้งค่า Cloud Persistence บน Vercel
+
+ระบบ production ต้องมี Environment Variables ต่อไปนี้ใน Vercel Project Settings:
+
+- `GITHUB_TOKEN`: GitHub token ที่มีสิทธิ์อ่านและเขียนไฟล์ Contents ของ repository
+- `GITHUB_REPO`: ค่าเริ่มต้นคือ `dollawat1234/workshop-submission-app` หากใช้ repository อื่นให้กำหนดค่านี้เพิ่ม
+
+ห้ามใส่ token ลงใน source code หรือ commit ลง Git หากไม่มี `GITHUB_TOKEN` ระบบจะตอบสถานะ `503` เพื่อป้องกันการรับงานสำเร็จหลอก ๆ แล้วข้อมูลหายเมื่อเปลี่ยน Serverless Instance หาก token เคยถูก commit หรือเผยแพร่แล้ว ควร revoke และสร้าง token ใหม่ก่อน deploy

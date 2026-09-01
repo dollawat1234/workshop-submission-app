@@ -13,6 +13,11 @@ let modalQrInstance = null;
 let currentNetworkUrl = window.location.origin + '/join';
 let autoPollTimer = null;
 let isTheaterMode = false;
+let dataRequestSequence = 0;
+let lastAppliedDataRequest = 0;
+let mutationSequence = 0;
+let hasLoadedDashboard = false;
+const pendingDeletedIds = new Set();
 
 // 1. Global Reveal Mode Handlers
 window.setRevealMode = async function (shouldReveal) {
@@ -75,7 +80,44 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 2. Fetch All Data
+function submissionSignature(sub) {
+  return [
+    sub.id,
+    sub.likes || 0,
+    sub.updatedAt || '',
+    sub.createdAt || '',
+    sub.teamId || '',
+    sub.title || '',
+    sub.caption || '',
+    sub.originalname || '',
+    sub.fileType || '',
+    sub.size || ''
+  ].join('::');
+}
+
+function applyDashboardData(session, incomingSubmissions, requestId, requestMutationSequence) {
+  // An older request must never overwrite a newer request or a post-mutation view.
+  if (requestId < lastAppliedDataRequest || requestMutationSequence !== mutationSequence) {
+    return false;
+  }
+
+  const incomingIds = new Set(incomingSubmissions.map(sub => sub.id));
+  for (const deletedId of pendingDeletedIds) {
+    if (!incomingIds.has(deletedId)) pendingDeletedIds.delete(deletedId);
+  }
+
+  currentSession = session || currentSession;
+  allSubmissions = incomingSubmissions.filter(sub => !pendingDeletedIds.has(sub.id));
+  lastAppliedDataRequest = requestId;
+  hasLoadedDashboard = true;
+  renderHeaderAndSession();
+  renderTeamColumns();
+  return true;
+}
+
 async function fetchAllData() {
+  const requestId = ++dataRequestSequence;
+  const requestMutationSequence = mutationSequence;
   const spinner = document.getElementById('refreshSpinner');
   if (spinner) spinner.classList.add('animate-spin');
 
@@ -90,11 +132,12 @@ async function fetchAllData() {
     const sessionData = await sessionRes.json();
     const subsData = await subsRes.json();
 
-    currentSession = sessionData.session || currentSession;
-    allSubmissions = subsData.submissions || [];
-
-    renderHeaderAndSession();
-    renderTeamColumns();
+    applyDashboardData(
+      sessionData.session || currentSession,
+      subsData.submissions || [],
+      requestId,
+      requestMutationSequence
+    );
   } catch (err) {
     console.error('Error fetching speaker data:', err);
   } finally {
@@ -444,8 +487,11 @@ async function likeSubmission(id) {
 // 7. Delete Submission
 async function deleteSubmission(id) {
   if (!confirm('คุณต้องการลบผลงานนี้ใช่หรือไม่?')) return;
-  
-  // 1. Optimistic removal: Immediately remove from client UI
+
+  // Keep this tombstone until a fresh response confirms that the item is gone.
+  // This prevents an in-flight/stale polling response from putting the card back.
+  mutationSequence += 1;
+  pendingDeletedIds.add(id);
   allSubmissions = allSubmissions.filter(s => s.id !== id);
   renderHeaderAndSession();
   renderTeamColumns();
@@ -458,6 +504,7 @@ async function deleteSubmission(id) {
   } catch (e) {
     console.error('Error deleting submission:', e);
     alert('ไม่สามารถลบผลงานได้: ' + e.message);
+    pendingDeletedIds.delete(id);
     await fetchAllData();
   }
 }
@@ -718,6 +765,8 @@ function setupEventListeners() {
   if (resetSubmissionsBtn) {
     resetSubmissionsBtn.addEventListener('click', async () => {
       if (!confirm('⚠️ คำเตือน: คุณต้องการรีเซ็ตผลงานทั้งหมดเพื่อเริ่มรอบใหม่ใช่หรือไม่? (ระบบจะสำรองข้อมูลเดิมไว้ให้อัตโนมัติ)')) return;
+      mutationSequence += 1;
+      allSubmissions.forEach(sub => pendingDeletedIds.add(sub.id));
       allSubmissions = [];
       renderHeaderAndSession();
       renderTeamColumns();
@@ -730,6 +779,7 @@ function setupEventListeners() {
         }
       } catch (e) {
         alert('ไม่สามารถรีเซ็ตได้');
+        pendingDeletedIds.clear();
         await fetchAllData();
       }
     });
@@ -917,20 +967,33 @@ function startAutoPoll() {
       return;
     }
 
+    const requestId = ++dataRequestSequence;
+    const requestMutationSequence = mutationSequence;
+
+    // Let the initial session/submission load establish the dashboard first.
+    if (!hasLoadedDashboard) return;
+
     fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store' })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
-        const revealChanged = Boolean(data.revealSubmissions) !== Boolean(currentSession.revealSubmissions);
         const incomingSubs = data.submissions || [];
-        const incomingIds = incomingSubs.map(s => s.id + (s.likes || 0)).join('|');
-        const currentIds = allSubmissions.map(s => s.id + (s.likes || 0)).join('|');
-        const itemsChanged = incomingIds !== currentIds;
+        const incomingSignature = incomingSubs.map(submissionSignature).join('|');
+        const currentSignature = allSubmissions.map(submissionSignature).join('|');
+        const revealChanged = Boolean(data.revealSubmissions) !== Boolean(currentSession.revealSubmissions);
+        const itemsChanged = incomingSignature !== currentSignature;
 
         if (revealChanged || itemsChanged) {
-          currentSession.revealSubmissions = Boolean(data.revealSubmissions);
-          allSubmissions = incomingSubs;
-          renderHeaderAndSession();
-          renderTeamColumns();
+          applyDashboardData(
+            { ...currentSession, revealSubmissions: Boolean(data.revealSubmissions) },
+            incomingSubs,
+            requestId,
+            requestMutationSequence
+          );
+        } else if (requestId >= lastAppliedDataRequest && requestMutationSequence === mutationSequence) {
+          lastAppliedDataRequest = requestId;
         }
       })
       .catch(() => {});

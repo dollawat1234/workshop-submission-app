@@ -11,9 +11,8 @@ const PORT = process.env.PORT || 3000;
 const isVercel = Boolean(process.env.VERCEL);
 
 // GitHub Cloud Persistence Configuration
-const _p1 = 'gho_Kb47w41DrzgALa8W1';
-const _p2 = 'CkXwpCXikJhVf1RXn1y';
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || (_p1 + _p2);
+// Never embed a GitHub token in source code. Configure it in Vercel/project env vars.
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'dollawat1234/workshop-submission-app';
 const GITHUB_STORE_FILE = 'data/store.json';
 
@@ -55,6 +54,35 @@ const DEFAULT_STORE = {
 // ----------------------------------------------------
 let memoryStore = null;
 let latestSha = null;
+const storeVersions = new WeakMap();
+
+class PersistenceError extends Error {
+  constructor(message, statusCode = 503, code = 'PERSISTENCE_UNAVAILABLE') {
+    super(message);
+    this.name = 'PersistenceError';
+    this.statusCode = statusCode;
+    this.code = code;
+  }
+}
+
+const asyncHandler = (handler) => (req, res, next) => {
+  Promise.resolve(handler(req, res, next)).catch(next);
+};
+
+function cloneStore(store) {
+  return JSON.parse(JSON.stringify(store));
+}
+
+function loadStoreFromFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return raw && raw.trim() ? JSON.parse(raw) : null;
+  } catch (err) {
+    console.error('Error loading store.json:', err.message);
+    return null;
+  }
+}
 
 async function syncFromGitHub() {
   if (!GITHUB_TOKEN) return null;
@@ -69,27 +97,47 @@ async function syncFromGitHub() {
         'Pragma': 'no-cache'
       }
     });
-    if (!res.ok) return null;
+    if (res.status === 404) {
+      latestSha = null;
+      return null;
+    }
+    if (!res.ok) {
+      throw new PersistenceError(`GitHub อ่านข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
+    }
     const data = await res.json();
+    if (!data.content || !data.sha) {
+      throw new PersistenceError('GitHub ส่งข้อมูล store.json กลับมาไม่ครบถ้วน');
+    }
     latestSha = data.sha;
     const contentStr = Buffer.from(data.content, 'base64').toString('utf8');
     const parsed = JSON.parse(contentStr);
+    storeVersions.set(parsed, data.sha);
     return parsed;
   } catch (err) {
     console.error('Remote fetch error:', err.message);
-    return null;
+    if (err instanceof PersistenceError) throw err;
+    throw new PersistenceError('ไม่สามารถอ่านข้อมูลจาก GitHub ได้ในขณะนี้');
   }
 }
 
-async function syncToGitHub(dataToSave, maxRetries = 3) {
-  if (!GITHUB_TOKEN) return false;
+async function syncToGitHub(dataToSave, expectedSha, maxRetries = 3) {
+  if (!GITHUB_TOKEN) {
+    throw new PersistenceError('ยังไม่ได้ตั้งค่า GITHUB_TOKEN สำหรับ Cloud Persistence');
+  }
+
+  const b64Content = Buffer.from(JSON.stringify(dataToSave, null, 2)).toString('base64');
+  const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const remote = await syncFromGitHub();
-      const shaToUse = (remote && latestSha) ? latestSha : latestSha;
+      // The SHA belongs to the exact version read before this request mutated it.
+      // Sending it to GitHub prevents a stale Lambda from overwriting a newer write.
+      const body = {
+        message: `Cloud Sync: Submissions Update [skip ci] (${Date.now()})`,
+        content: b64Content
+      };
+      if (expectedSha) body.sha = expectedSha;
 
-      const b64Content = Buffer.from(JSON.stringify(dataToSave, null, 2)).toString('base64');
-      const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}`;
       const res = await fetch(url, {
         method: 'PUT',
         headers: {
@@ -98,31 +146,39 @@ async function syncToGitHub(dataToSave, maxRetries = 3) {
           'Accept': 'application/vnd.github+json',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          message: `Cloud Sync: Submissions Update [skip ci] (${Date.now()})`,
-          content: b64Content,
-          sha: shaToUse
-        })
+        body: JSON.stringify(body)
       });
 
       if (res.ok) {
         const resData = await res.json();
-        if (resData.content && resData.content.sha) {
-          latestSha = resData.content.sha;
-        }
-        return true;
+        const savedSha = resData.content && resData.content.sha;
+        latestSha = savedSha || expectedSha || null;
+        return { sha: latestSha };
       }
 
-      if (res.status === 409) {
+      if (res.status === 409 || res.status === 422) {
+        throw new PersistenceError(
+          'ข้อมูลถูกแก้ไขพร้อมกันจากอีกคำขอหนึ่ง กรุณาลองใหม่อีกครั้ง',
+          409,
+          'PERSISTENCE_CONFLICT'
+        );
+      }
+
+      if (res.status >= 500 || res.status === 429) {
         await new Promise(r => setTimeout(r, 200 * attempt));
         continue;
       }
+
+      throw new PersistenceError(`GitHub บันทึกข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
     } catch (err) {
+      if (err instanceof PersistenceError && err.code === 'PERSISTENCE_CONFLICT') throw err;
       console.error(`Sync attempt ${attempt} error:`, err.message);
+      if (err instanceof PersistenceError && attempt === maxRetries) throw err;
       await new Promise(r => setTimeout(r, 200 * attempt));
     }
   }
-  return false;
+
+  throw new PersistenceError('ไม่สามารถบันทึกข้อมูลบน GitHub ได้หลังจากลองหลายครั้ง');
 }
 
 async function getFreshStore() {
@@ -130,39 +186,51 @@ async function getFreshStore() {
     const remoteData = await syncFromGitHub();
     if (remoteData) {
       memoryStore = remoteData;
-      return memoryStore;
+      const freshStore = cloneStore(remoteData);
+      storeVersions.set(freshStore, latestSha);
+      return freshStore;
     }
+
+    // A missing cloud file is safe to bootstrap from the checked-in seed.
+    // Any other GitHub failure throws above instead of silently serving stale data.
+    const seedStore = loadStoreFromFile(SEED_STORE_PATH) || cloneStore(DEFAULT_STORE);
+    const freshStore = cloneStore(seedStore);
+    storeVersions.set(freshStore, null);
+    return freshStore;
   }
-  return getStore();
+
+  if (isVercel) {
+    throw new PersistenceError('ระบบยังไม่พร้อมใช้งาน: กรุณาตั้งค่า GITHUB_TOKEN ใน Vercel');
+  }
+
+  const freshStore = cloneStore(getStore());
+  storeVersions.set(freshStore, null);
+  return freshStore;
 }
 
 function getStore() {
   if (memoryStore) return memoryStore;
-  try {
-    if (fs.existsSync(STORE_PATH)) {
-      const raw = fs.readFileSync(STORE_PATH, 'utf8');
-      if (raw && raw.trim()) {
-        memoryStore = JSON.parse(raw);
-        return memoryStore;
-      }
-    } else if (fs.existsSync(SEED_STORE_PATH)) {
-      const raw = fs.readFileSync(SEED_STORE_PATH, 'utf8');
-      if (raw && raw.trim()) {
-        memoryStore = JSON.parse(raw);
-        saveStore(memoryStore);
-        return memoryStore;
-      }
-    }
-  } catch (err) {
-    console.error('Error loading store.json:', err);
-  }
+  memoryStore = loadStoreFromFile(STORE_PATH) || loadStoreFromFile(SEED_STORE_PATH);
+  if (memoryStore) return memoryStore;
   memoryStore = JSON.parse(JSON.stringify(DEFAULT_STORE));
-  saveStore(memoryStore);
   return memoryStore;
 }
 
 async function saveStore(data) {
-  memoryStore = data;
+  if (isVercel && !GITHUB_TOKEN) {
+    throw new PersistenceError('ระบบยังไม่พร้อมใช้งาน: กรุณาตั้งค่า GITHUB_TOKEN ใน Vercel');
+  }
+
+  const expectedSha = storeVersions.get(data) || null;
+  let savedSha = expectedSha;
+
+  // Cloud is authoritative in production. Do this before updating the local cache
+  // so a failed cloud write can never be reported as a successful submission.
+  if (GITHUB_TOKEN) {
+    const result = await syncToGitHub(data, expectedSha);
+    savedSha = result.sha || expectedSha;
+  }
+
   try {
     const tmpPath = path.join(DATA_DIR, `store_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.tmp`);
     await fs.promises.writeFile(tmpPath, JSON.stringify(data, null, 2), 'utf8');
@@ -171,9 +239,8 @@ async function saveStore(data) {
     console.error('Local save error:', err);
   }
 
-  if (GITHUB_TOKEN) {
-    await syncToGitHub(data);
-  }
+  memoryStore = data;
+  storeVersions.set(data, savedSha);
   return true;
 }
 
@@ -307,7 +374,6 @@ app.get('/', (req, res) => {
 app.get('/api/debug-status', (req, res) => {
   res.json({
     hasToken: Boolean(GITHUB_TOKEN && GITHUB_TOKEN.length > 5),
-    tokenPrefix: GITHUB_TOKEN ? GITHUB_TOKEN.substring(0, 7) : 'NONE',
     repo: GITHUB_REPO,
     isVercel: isVercel
   });
@@ -340,7 +406,7 @@ app.get('/api/network-info', (req, res) => {
 });
 
 // 2. Get Current Session Info (Fresh from Cloud)
-app.get('/api/session', async (req, res) => {
+app.get('/api/session', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const teamStats = store.session.teams.map(team => {
     const count = store.submissions.filter(s => s.teamId === team.id).length;
@@ -357,10 +423,10 @@ app.get('/api/session', async (req, res) => {
       totalSubmissions: store.submissions.length
     }
   });
-});
+}));
 
 // 3. Update Session Settings (Speaker)
-app.put('/api/session', async (req, res) => {
+app.put('/api/session', asyncHandler(async (req, res) => {
   const { title, subtitle, badge, topic, description, maxFileSizeMB, teams } = req.body;
   const store = await getFreshStore();
 
@@ -383,10 +449,10 @@ app.put('/api/session', async (req, res) => {
 
   await saveStore(store);
   res.json({ success: true, session: store.session });
-});
+}));
 
 // 4. Toggle Reveal Mode (Speaker)
-app.post('/api/session/toggle-reveal', async (req, res) => {
+app.post('/api/session/toggle-reveal', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   if (typeof req.body.reveal === 'boolean') {
     store.session.revealSubmissions = req.body.reveal;
@@ -395,10 +461,10 @@ app.post('/api/session/toggle-reveal', async (req, res) => {
   }
   await saveStore(store);
   res.json({ success: true, revealSubmissions: store.session.revealSubmissions });
-});
+}));
 
 // 5. Reset Submissions
-app.post('/api/session/reset', async (req, res) => {
+app.post('/api/session/reset', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const backupFilename = `backup_submissions_${Date.now()}.json`;
   try {
@@ -422,10 +488,10 @@ app.post('/api/session/reset', async (req, res) => {
   await saveStore(store);
 
   res.json({ success: true, message: 'รีเซ็ตข้อมูลผลงานและล้างไฟล์เรียบร้อยแล้ว', backup: backupFilename });
-});
+}));
 
 // 6. Get Submissions List (Chronological: Newest First)
-app.get('/api/submissions', async (req, res) => {
+app.get('/api/submissions', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const isSpeaker = req.query.view === 'speaker';
   const queryTeamId = req.query.teamId;
@@ -460,10 +526,10 @@ app.get('/api/submissions', async (req, res) => {
     revealSubmissions: isRevealed,
     submissions
   });
-});
+}));
 
 // 7. Get Single Submission Detail
-app.get('/api/submissions/:id', async (req, res) => {
+app.get('/api/submissions/:id', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
   if (!sub) {
@@ -489,15 +555,19 @@ app.get('/api/submissions/:id', async (req, res) => {
   }
 
   res.json({ success: true, submission: sub });
-});
+}));
 
 // 8. Upload Submission (Multer + Base64 Cloud Persistence)
 app.post('/api/upload', (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        const store = await getFreshStore();
-        return res.status(400).json({ error: `ขนาดไฟล์ใหญ่เกินกำหนด (สูงสุด ${store.session.maxFileSizeMB || 25}MB)` });
+        try {
+          const store = await getFreshStore();
+          return res.status(400).json({ error: `ขนาดไฟล์ใหญ่เกินกำหนด (สูงสุด ${store.session.maxFileSizeMB || 25}MB)` });
+        } catch (storeErr) {
+          return res.status(storeErr.statusCode || 503).json({ error: storeErr.message });
+        }
       }
       return res.status(400).json({ error: 'เกิดข้อผิดพลาดในการอัปโหลด: ' + err.message });
     } else if (err) {
@@ -577,7 +647,10 @@ app.post('/api/upload', (req, res) => {
     } catch (e) {
       console.error('Upload error:', e);
       if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการบันทึกผลงาน' });
+      res.status(e.statusCode || 500).json({
+        error: e.statusCode ? e.message : 'เกิดข้อผิดพลาดในการบันทึกผลงาน',
+        code: e.code || 'UPLOAD_ERROR'
+      });
     }
   });
 });
@@ -652,13 +725,16 @@ app.put('/api/submissions/:id', (req, res) => {
       });
     } catch (e) {
       console.error('Edit error:', e);
-      res.status(500).json({ error: 'เกิดข้อผิดพลาดในการแก้ไขผลงาน' });
+      res.status(e.statusCode || 500).json({
+        error: e.statusCode ? e.message : 'เกิดข้อผิดพลาดในการแก้ไขผลงาน',
+        code: e.code || 'EDIT_ERROR'
+      });
     }
   });
 });
 
 // 10. Delete Submission
-app.delete('/api/submissions/:id', async (req, res) => {
+app.delete('/api/submissions/:id', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const index = store.submissions.findIndex(s => s.id === req.params.id);
 
@@ -678,10 +754,10 @@ app.delete('/api/submissions/:id', async (req, res) => {
   await saveStore(store);
 
   res.json({ success: true, message: 'ลบผลงานเรียบร้อยแล้ว' });
-});
+}));
 
 // 11. Like Submission
-app.post('/api/submissions/:id/like', async (req, res) => {
+app.post('/api/submissions/:id/like', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
 
@@ -693,10 +769,10 @@ app.post('/api/submissions/:id/like', async (req, res) => {
   await saveStore(store);
 
   res.json({ success: true, likes: sub.likes });
-});
+}));
 
 // 12. Export ZIP
-app.get('/api/export/zip', async (req, res) => {
+app.get('/api/export/zip', asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const archive = archiver('zip', { zlib: { level: 9 } });
 
@@ -738,6 +814,17 @@ app.get('/api/export/zip', async (req, res) => {
   archive.append(JSON.stringify(store, null, 2), { name: 'data_export.json' });
 
   archive.finalize();
+}));
+
+// Express 4 does not forward rejected async handlers by itself.
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const statusCode = err.statusCode || 500;
+  console.error('API error:', err.message);
+  res.status(statusCode).json({
+    error: statusCode === 500 ? 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์' : err.message,
+    code: err.code || 'INTERNAL_ERROR'
+  });
 });
 
 // Start Server locally

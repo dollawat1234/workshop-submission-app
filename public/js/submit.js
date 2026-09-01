@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 1. Fetch Session Info & Teams
 async function loadSessionData() {
   try {
-    const res = await fetch('/api/session');
+    const res = await fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Network error');
     const data = await res.json();
     currentSession = data.session;
@@ -556,7 +556,7 @@ async function loadMySubmissions() {
   }
 
   try {
-    const res = await fetch(`/api/submissions?teamId=${encodeURIComponent(selectedTeamId)}&_t=${Date.now()}`);
+    const res = await fetch(`/api/submissions?teamId=${encodeURIComponent(selectedTeamId)}&_t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
     const mySubmissions = (data.submissions || []).filter(s => s.teamId === selectedTeamId);
 
@@ -601,7 +601,7 @@ async function loadMySubmissions() {
 // 11. Open View-Only Modal
 async function openViewSubmissionModal(submissionId) {
   try {
-    const res = await fetch(`/api/submissions/${submissionId}`);
+    const res = await fetch(`/api/submissions/${submissionId}?_t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
     if (!data.success || !data.submission) throw new Error('Not found');
 
