@@ -14,6 +14,7 @@ let selectedTeamId = safeStorage.get('workshop_selected_team', null);
 let savedSubmitterName = safeStorage.get('workshop_submitter_name', '');
 let selectedFile = null;
 let isSubmitting = false;
+let pendingUploadRequestId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   // Mascots
@@ -403,6 +404,7 @@ function handleFileSelected(file) {
 
   fileErrorMsg.classList.add('hidden');
   selectedFile = file;
+  pendingUploadRequestId = null;
 
   const uploadPrompt = document.getElementById('uploadPrompt');
   const previewWrapper = document.getElementById('filePreviewWrapper');
@@ -436,12 +438,98 @@ function handleFileSelected(file) {
 
 function clearSelectedFile() {
   selectedFile = null;
+  pendingUploadRequestId = null;
   document.getElementById('fileInput').value = '';
   document.getElementById('uploadPrompt').classList.remove('hidden');
   document.getElementById('filePreviewWrapper').classList.add('hidden');
   document.getElementById('imagePreview').src = '';
   document.getElementById('fileErrorMsg').classList.add('hidden');
   document.getElementById('uploadProgressContainer').classList.add('hidden');
+}
+
+function createUploadRequestId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `upload_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+}
+
+function restoreSubmitButton() {
+  const submitBtn = document.getElementById('submitBtn');
+  if (!submitBtn) return;
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = `
+    <i data-lucide="send" class="w-5 h-5"></i>
+    <span>ส่งผลงานเลย! 🚀</span>
+  `;
+  if (window.lucide) lucide.createIcons();
+}
+
+function finishUploadUi() {
+  isSubmitting = false;
+  restoreSubmitButton();
+  document.getElementById('uploadProgressContainer').classList.add('hidden');
+}
+
+function sendUploadRequest(formData, attempt = 0) {
+  const progressBar = document.getElementById('uploadProgressBar');
+  const progressPercent = document.getElementById('uploadProgressPercent');
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/upload', true);
+
+  xhr.upload.onprogress = function (e) {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = `${pct}%`;
+      progressPercent.textContent = `${pct}%`;
+    }
+  };
+
+  xhr.onload = function () {
+    let result;
+    try {
+      result = JSON.parse(xhr.responseText);
+    } catch (err) {
+      finishUploadUi();
+      alert('ไม่สามารถประมวลผลคำตอบจากเซิร์ฟเวอร์ได้');
+      return;
+    }
+
+    // A conflict means another participant committed first. The server
+    // rebases most conflicts; this bounded retry covers a final CAS conflict
+    // and reuses the same idempotency key to prevent duplicate submissions.
+    if (xhr.status === 409 && attempt < 2) {
+      document.getElementById('submitBtn').querySelector('span').textContent = 'กำลังลองบันทึกใหม่...';
+      progressBar.style.width = '0%';
+      progressPercent.textContent = '0%';
+      window.setTimeout(() => sendUploadRequest(formData, attempt + 1), 350 * (attempt + 1));
+      return;
+    }
+
+    finishUploadUi();
+    if (xhr.status >= 200 && xhr.status < 300 && result.success) {
+      const sub = result.submission;
+      document.getElementById('successSummaryTeam').textContent = sub.teamName || 'ทีมที่คุณเลือก';
+      document.getElementById('successSummaryFile').textContent = sub.originalname || (selectedFile && selectedFile.name) || 'ไฟล์ผลงาน';
+      document.getElementById('successSummaryTime').textContent = formatTime(sub.createdAt);
+
+      triggerCelebration();
+      document.getElementById('successModal').classList.remove('hidden');
+      clearSelectedFile();
+      document.getElementById('captionInput').value = '';
+      loadSessionData();
+    } else {
+      alert(result.error || 'เกิดข้อผิดพลาดในการส่งผลงาน');
+    }
+  };
+
+  xhr.onerror = function () {
+    finishUploadUi();
+    alert('การเชื่อมต่อขัดข้อง กรุณากดส่งอีกครั้ง ระบบจะป้องกันผลงานซ้ำให้อัตโนมัติ');
+  };
+
+  xhr.ontimeout = xhr.onerror;
+  xhr.send(formData);
 }
 
 // 9. Handle Form Submit
@@ -474,9 +562,11 @@ function handleFormSubmit(e) {
   fileErrorMsg.classList.add('hidden');
 
   const formData = new FormData();
+  pendingUploadRequestId = pendingUploadRequestId || createUploadRequestId();
   formData.append('teamId', teamId);
   formData.append('submitterName', document.getElementById('submitterInput').value.trim());
   formData.append('caption', document.getElementById('captionInput').value.trim());
+  formData.append('clientRequestId', pendingUploadRequestId);
   formData.append('file', selectedFile);
 
   isSubmitting = true;
@@ -490,61 +580,7 @@ function handleFormSubmit(e) {
   progressBar.style.width = '0%';
   progressPercent.textContent = '0%';
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/upload', true);
-
-  xhr.upload.onprogress = function (e) {
-    if (e.lengthComputable) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      progressBar.style.width = `${pct}%`;
-      progressPercent.textContent = `${pct}%`;
-    }
-  };
-
-  xhr.onload = function () {
-    isSubmitting = false;
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = `
-      <i data-lucide="send" class="w-5 h-5"></i>
-      <span>ส่งผลงานเลย! 🚀</span>
-    `;
-    progressContainer.classList.add('hidden');
-    if (window.lucide) lucide.createIcons();
-
-    try {
-      const result = JSON.parse(xhr.responseText);
-      if (xhr.status >= 200 && xhr.status < 300 && result.success) {
-        const sub = result.submission;
-        document.getElementById('successSummaryTeam').textContent = sub.teamName || 'ทีมที่คุณเลือก';
-        document.getElementById('successSummaryFile').textContent = sub.originalname || selectedFile.name;
-        document.getElementById('successSummaryTime').textContent = formatTime(sub.createdAt);
-
-        triggerCelebration();
-        document.getElementById('successModal').classList.remove('hidden');
-        clearSelectedFile();
-        document.getElementById('captionInput').value = '';
-        loadSessionData();
-      } else {
-        alert(result.error || 'เกิดข้อผิดพลาดในการส่งผลงาน');
-      }
-    } catch (err) {
-      alert('ไม่สามารถประมวลผลคำตอบจากเซิร์ฟเวอร์ได้');
-    }
-  };
-
-  xhr.onerror = function () {
-    isSubmitting = false;
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = `
-      <i data-lucide="send" class="w-5 h-5"></i>
-      <span>ส่งผลงานเลย! 🚀</span>
-    `;
-    progressContainer.classList.add('hidden');
-    if (window.lucide) lucide.createIcons();
-    alert('การเชื่อมต่อขัดข้อง กรุณาตรวจสอบสัญญาณ Wi-Fi แล้วลองใหม่อีกครั้ง');
-  };
-
-  xhr.send(formData);
+  sendUploadRequest(formData);
 }
 
 // 10. Load Submissions for Selected Team (View Only)
@@ -558,6 +594,7 @@ async function loadMySubmissions() {
   try {
     const res = await fetch(`/api/submissions?teamId=${encodeURIComponent(selectedTeamId)}&_t=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const mySubmissions = (data.submissions || []).filter(s => s.teamId === selectedTeamId);
 
     if (mySubmissions.length === 0) {

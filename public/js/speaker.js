@@ -13,8 +13,14 @@ let modalQrInstance = null;
 let currentNetworkUrl = window.location.origin + '/join';
 let autoPollTimer = null;
 let isTheaterMode = false;
-let dataRequestSequence = 0;
-let lastAppliedDataRequest = 0;
+let fullDataRequestSequence = 0;
+let lastAppliedFullDataRequest = 0;
+let pollRequestSequence = 0;
+let lastAppliedPollRequest = 0;
+let dataLoadEpoch = 0;
+let fullFetchInFlight = 0;
+let pollInFlight = false;
+let activePollController = null;
 let mutationSequence = 0;
 let hasLoadedDashboard = false;
 const pendingDeletedIds = new Set();
@@ -42,6 +48,7 @@ window.setRevealMode = async function (shouldReveal) {
     });
 
     const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
     if (data && typeof data.revealSubmissions === 'boolean') {
       currentSession.revealSubmissions = data.revealSubmissions;
       renderHeaderAndSession();
@@ -95,20 +102,37 @@ function submissionSignature(sub) {
   ].join('::');
 }
 
-function applyDashboardData(session, incomingSubmissions, requestId, requestMutationSequence) {
-  // An older request must never overwrite a newer request or a post-mutation view.
-  if (requestId < lastAppliedDataRequest || requestMutationSequence !== mutationSequence) {
-    return false;
-  }
-
+function pruneConfirmedDeletions(incomingSubmissions) {
   const incomingIds = new Set(incomingSubmissions.map(sub => sub.id));
   for (const deletedId of pendingDeletedIds) {
     if (!incomingIds.has(deletedId)) pendingDeletedIds.delete(deletedId);
   }
+}
 
+function applyDashboardData(session, incomingSubmissions, options) {
+  const {
+    source,
+    requestId,
+    requestMutationSequence,
+    loadEpoch
+  } = options;
+
+  // An older request must never overwrite a newer request or a post-mutation view.
+  if (requestMutationSequence !== mutationSequence || loadEpoch !== dataLoadEpoch) {
+    return false;
+  }
+
+  if (source === 'full') {
+    if (requestId < lastAppliedFullDataRequest) return false;
+    lastAppliedFullDataRequest = requestId;
+  } else {
+    if (requestId < lastAppliedPollRequest) return false;
+    lastAppliedPollRequest = requestId;
+  }
+
+  pruneConfirmedDeletions(incomingSubmissions);
   currentSession = session || currentSession;
   allSubmissions = incomingSubmissions.filter(sub => !pendingDeletedIds.has(sub.id));
-  lastAppliedDataRequest = requestId;
   hasLoadedDashboard = true;
   renderHeaderAndSession();
   renderTeamColumns();
@@ -116,15 +140,19 @@ function applyDashboardData(session, incomingSubmissions, requestId, requestMuta
 }
 
 async function fetchAllData() {
-  const requestId = ++dataRequestSequence;
+  const requestId = ++fullDataRequestSequence;
   const requestMutationSequence = mutationSequence;
+  const loadEpoch = ++dataLoadEpoch;
+  fullFetchInFlight += 1;
+  if (activePollController) activePollController.abort();
   const spinner = document.getElementById('refreshSpinner');
   if (spinner) spinner.classList.add('animate-spin');
 
   try {
+    const controller = new AbortController();
     const [sessionRes, subsRes] = await Promise.all([
-      fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store' })
+      fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal }),
+      fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
     ]);
 
     if (!sessionRes.ok || !subsRes.ok) throw new Error('Network error');
@@ -135,12 +163,17 @@ async function fetchAllData() {
     applyDashboardData(
       sessionData.session || currentSession,
       subsData.submissions || [],
-      requestId,
-      requestMutationSequence
+      {
+        source: 'full',
+        requestId,
+        requestMutationSequence,
+        loadEpoch
+      }
     );
   } catch (err) {
     console.error('Error fetching speaker data:', err);
   } finally {
+    fullFetchInFlight = Math.max(0, fullFetchInFlight - 1);
     if (spinner) {
       setTimeout(() => spinner.classList.remove('animate-spin'), 350);
     }
@@ -465,6 +498,7 @@ function renderTeamColumns() {
 // 6. Like Submission
 async function likeSubmission(id) {
   const sub = allSubmissions.find(s => s.id === id);
+  const previousLikes = sub ? (sub.likes || 0) : null;
   if (sub) {
     sub.likes = (sub.likes || 0) + 1;
     const likeCountEl = document.getElementById('presentationLikeCount');
@@ -473,14 +507,19 @@ async function likeSubmission(id) {
   }
 
   try {
-    const res = await fetch(`/api/submissions/${id}/like`, { method: 'POST' });
-    if (res.ok) {
-      if (typeof confetti === 'function') {
-        confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
-      }
+    const res = await fetch(`/api/submissions/${id}/like?_t=${Date.now()}`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
     }
   } catch (e) {
     console.error('Error liking submission:', e);
+    if (sub && previousLikes !== null) {
+      sub.likes = previousLikes;
+      renderTeamColumns();
+    }
+    fetchAllData();
   }
 }
 
@@ -771,14 +810,13 @@ function setupEventListeners() {
       renderHeaderAndSession();
       renderTeamColumns();
       try {
-        const res = await fetch(`/api/session/reset?_t=${Date.now()}`, { method: 'POST' });
+        const res = await fetch(`/api/session/reset?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' });
         const data = await res.json();
-        if (data.success) {
-          alert(data.message);
-          await fetchAllData();
-        }
+        if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
+        alert(data.message);
+        await fetchAllData();
       } catch (e) {
-        alert('ไม่สามารถรีเซ็ตได้');
+        alert('ไม่สามารถรีเซ็ตได้: ' + e.message);
         pendingDeletedIds.clear();
         await fetchAllData();
       }
@@ -967,36 +1005,50 @@ function startAutoPoll() {
       return;
     }
 
-    const requestId = ++dataRequestSequence;
-    const requestMutationSequence = mutationSequence;
-
-    // Let the initial session/submission load establish the dashboard first.
+    if (fullFetchInFlight > 0 || pollInFlight) return;
     if (!hasLoadedDashboard) return;
 
-    fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store' })
+    const requestId = ++pollRequestSequence;
+    const requestMutationSequence = mutationSequence;
+    const loadEpoch = dataLoadEpoch;
+    const controller = new AbortController();
+    activePollController = controller;
+    pollInFlight = true;
+
+    fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then(data => {
         const incomingSubs = data.submissions || [];
+        if (requestMutationSequence !== mutationSequence || loadEpoch !== dataLoadEpoch) return;
+        const pendingDeletedCount = pendingDeletedIds.size;
+        pruneConfirmedDeletions(incomingSubs);
         const incomingSignature = incomingSubs.map(submissionSignature).join('|');
         const currentSignature = allSubmissions.map(submissionSignature).join('|');
         const revealChanged = Boolean(data.revealSubmissions) !== Boolean(currentSession.revealSubmissions);
         const itemsChanged = incomingSignature !== currentSignature;
+        const tombstonesChanged = pendingDeletedIds.size !== pendingDeletedCount;
 
-        if (revealChanged || itemsChanged) {
+        if (revealChanged || itemsChanged || tombstonesChanged) {
           applyDashboardData(
             { ...currentSession, revealSubmissions: Boolean(data.revealSubmissions) },
             incomingSubs,
-            requestId,
-            requestMutationSequence
+            {
+              source: 'poll',
+              requestId,
+              requestMutationSequence,
+              loadEpoch
+            }
           );
-        } else if (requestId >= lastAppliedDataRequest && requestMutationSequence === mutationSequence) {
-          lastAppliedDataRequest = requestId;
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        pollInFlight = false;
+        if (activePollController === controller) activePollController = null;
+      });
   }, 2500);
 }
 

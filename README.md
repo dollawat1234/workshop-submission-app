@@ -55,5 +55,8 @@ npm start
 
 - `GITHUB_TOKEN`: GitHub token ที่มีสิทธิ์อ่านและเขียนไฟล์ Contents ของ repository
 - `GITHUB_REPO`: ค่าเริ่มต้นคือ `dollawat1234/workshop-submission-app` หากใช้ repository อื่นให้กำหนดค่านี้เพิ่ม
+- `GITHUB_BOOTSTRAP`: ตั้งเป็น `true` เฉพาะตอนเริ่ม repository ใหม่และต้องการสร้าง `data/store.json` จาก seed ใน repo; หลัง bootstrap ควรลบหรือปิดค่าเป็น `false`
 
 ห้ามใส่ token ลงใน source code หรือ commit ลง Git หากไม่มี `GITHUB_TOKEN` ระบบจะตอบสถานะ `503` เพื่อป้องกันการรับงานสำเร็จหลอก ๆ แล้วข้อมูลหายเมื่อเปลี่ยน Serverless Instance หาก token เคยถูก commit หรือเผยแพร่แล้ว ควร revoke และสร้าง token ใหม่ก่อน deploy
+
+ทุกการแก้ไขข้อมูลใช้ GitHub file SHA แบบ compare-and-swap และ retry/rebase เมื่อมีผู้ใช้หลายคนส่งพร้อมกัน ส่วนการส่งไฟล์ใช้ idempotency key เพื่อให้การกดส่งซ้ำหลังสัญญาณขัดข้องไม่สร้างผลงานซ้ำ

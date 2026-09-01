@@ -15,6 +15,7 @@ const isVercel = Boolean(process.env.VERCEL);
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'dollawat1234/workshop-submission-app';
 const GITHUB_STORE_FILE = 'data/store.json';
+const ALLOW_GITHUB_BOOTSTRAP = process.env.GITHUB_BOOTSTRAP === 'true';
 
 // Directories (Vercel uses /tmp for writable storage)
 const DATA_DIR = isVercel ? path.join(os.tmpdir(), 'workshop-data') : path.join(__dirname, 'data');
@@ -53,8 +54,9 @@ const DEFAULT_STORE = {
 // Multi-Tier Cloud Persistence Engine (Direct Cloud Sync)
 // ----------------------------------------------------
 let memoryStore = null;
-let latestSha = null;
 const storeVersions = new WeakMap();
+let localMutationQueue = Promise.resolve();
+const MAX_MUTATION_ATTEMPTS = 5;
 
 class PersistenceError extends Error {
   constructor(message, statusCode = 503, code = 'PERSISTENCE_UNAVAILABLE') {
@@ -88,28 +90,48 @@ async function syncFromGitHub() {
   if (!GITHUB_TOKEN) return null;
   try {
     const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_STORE_FILE}?t=${Date.now()}`;
+    const headers = {
+      'Authorization': `Bearer ${GITHUB_TOKEN}`,
+      'User-Agent': 'TeamGame-CloudSync',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache'
+    };
     const res = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-        'User-Agent': 'TeamGame-CloudSync',
-        'Accept': 'application/vnd.github+json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
+        ...headers,
+        'Accept': 'application/vnd.github+json'
       }
     });
     if (res.status === 404) {
-      latestSha = null;
       return null;
     }
     if (!res.ok) {
       throw new PersistenceError(`GitHub อ่านข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
     }
+
     const data = await res.json();
-    if (!data.content || !data.sha) {
+    if (!data.sha) {
       throw new PersistenceError('GitHub ส่งข้อมูล store.json กลับมาไม่ครบถ้วน');
     }
-    latestSha = data.sha;
-    const contentStr = Buffer.from(data.content, 'base64').toString('utf8');
+
+    // The Contents API omits full `content` for files over 1 MB. Request the
+    // raw representation in that case so Base64 image data remains readable.
+    let contentStr;
+    if (data.content && data.encoding === 'base64') {
+      contentStr = Buffer.from(data.content, 'base64').toString('utf8');
+    } else {
+      const rawRes = await fetch(url, {
+        headers: {
+          ...headers,
+          'Accept': 'application/vnd.github.raw+json'
+        }
+      });
+      if (!rawRes.ok) {
+        throw new PersistenceError(`GitHub อ่านข้อมูล store.json แบบ raw ไม่สำเร็จ (HTTP ${rawRes.status})`);
+      }
+      contentStr = await rawRes.text();
+    }
+
     const parsed = JSON.parse(contentStr);
     storeVersions.set(parsed, data.sha);
     return parsed;
@@ -152,15 +174,22 @@ async function syncToGitHub(dataToSave, expectedSha, maxRetries = 3) {
       if (res.ok) {
         const resData = await res.json();
         const savedSha = resData.content && resData.content.sha;
-        latestSha = savedSha || expectedSha || null;
-        return { sha: latestSha };
+        return { sha: savedSha || expectedSha || null };
       }
 
-      if (res.status === 409 || res.status === 422) {
+      if (res.status === 409) {
         throw new PersistenceError(
           'ข้อมูลถูกแก้ไขพร้อมกันจากอีกคำขอหนึ่ง กรุณาลองใหม่อีกครั้ง',
           409,
           'PERSISTENCE_CONFLICT'
+        );
+      }
+
+      if (res.status === 422) {
+        throw new PersistenceError(
+          'GitHub ปฏิเสธข้อมูลที่ส่งไป (Validation Error)',
+          422,
+          'PERSISTENCE_VALIDATION'
         );
       }
 
@@ -171,7 +200,9 @@ async function syncToGitHub(dataToSave, expectedSha, maxRetries = 3) {
 
       throw new PersistenceError(`GitHub บันทึกข้อมูลไม่สำเร็จ (HTTP ${res.status})`);
     } catch (err) {
-      if (err instanceof PersistenceError && err.code === 'PERSISTENCE_CONFLICT') throw err;
+      if (err instanceof PersistenceError && ['PERSISTENCE_CONFLICT', 'PERSISTENCE_VALIDATION'].includes(err.code)) {
+        throw err;
+      }
       console.error(`Sync attempt ${attempt} error:`, err.message);
       if (err instanceof PersistenceError && attempt === maxRetries) throw err;
       await new Promise(r => setTimeout(r, 200 * attempt));
@@ -187,12 +218,18 @@ async function getFreshStore() {
     if (remoteData) {
       memoryStore = remoteData;
       const freshStore = cloneStore(remoteData);
-      storeVersions.set(freshStore, latestSha);
+      storeVersions.set(freshStore, storeVersions.get(remoteData) || null);
       return freshStore;
     }
 
-    // A missing cloud file is safe to bootstrap from the checked-in seed.
-    // Any other GitHub failure throws above instead of silently serving stale data.
+    // Never silently resurrect a checked-in seed in production. Bootstrap is an
+    // explicit one-time opt-in so a wrong repository/token cannot recreate old data.
+    if (!ALLOW_GITHUB_BOOTSTRAP) {
+      throw new PersistenceError(
+        `ไม่พบไฟล์ ${GITHUB_STORE_FILE} บน GitHub กรุณาตรวจสอบ GITHUB_REPO หรือเปิด GITHUB_BOOTSTRAP=true เพื่อเริ่มระบบใหม่`
+      );
+    }
+
     const seedStore = loadStoreFromFile(SEED_STORE_PATH) || cloneStore(DEFAULT_STORE);
     const freshStore = cloneStore(seedStore);
     storeVersions.set(freshStore, null);
@@ -237,11 +274,77 @@ async function saveStore(data) {
     await fs.promises.rename(tmpPath, STORE_PATH);
   } catch (err) {
     console.error('Local save error:', err);
+    if (!GITHUB_TOKEN) {
+      throw new PersistenceError('ไม่สามารถบันทึกข้อมูลลงในเครื่องได้', 500, 'LOCAL_PERSISTENCE_ERROR');
+    }
   }
 
   memoryStore = data;
   storeVersions.set(data, savedSha);
   return true;
+}
+
+function enqueueLocalMutation(work) {
+  const next = localMutationQueue.then(work, work);
+  localMutationQueue = next.catch(() => {});
+  return next;
+}
+
+function waitForMutationRetry(attempt) {
+  return new Promise(resolve => setTimeout(resolve, 150 * attempt));
+}
+
+// Execute a complete read-modify-write transaction. GitHub's SHA acts as a
+// compare-and-swap across serverless instances; on conflict we re-read the
+// newest store and replay the pure mutation. Local requests are additionally
+// serialized because there is no remote SHA to arbitrate file writes.
+async function mutateStore(mutator, onCommitted) {
+  const execute = async () => {
+    let lastConflict = null;
+
+    for (let attempt = 1; attempt <= MAX_MUTATION_ATTEMPTS; attempt++) {
+      const store = await getFreshStore();
+      const outcome = await mutator(store, attempt);
+
+      if (outcome && outcome.save === false) {
+        return outcome.value;
+      }
+
+      try {
+        await saveStore(store);
+        if (onCommitted) await onCommitted(outcome && outcome.value, store);
+        return outcome && Object.prototype.hasOwnProperty.call(outcome, 'value')
+          ? outcome.value
+          : outcome;
+      } catch (err) {
+        if (!(err instanceof PersistenceError) || err.code !== 'PERSISTENCE_CONFLICT') {
+          throw err;
+        }
+
+        lastConflict = err;
+        if (attempt === MAX_MUTATION_ATTEMPTS) break;
+        await waitForMutationRetry(attempt);
+      }
+    }
+
+    throw lastConflict || new PersistenceError('ไม่สามารถบันทึกข้อมูลได้หลังจากลองหลายครั้ง');
+  };
+
+  if (!GITHUB_TOKEN && !isVercel) {
+    return enqueueLocalMutation(execute);
+  }
+  return execute();
+}
+
+function removeUploadFile(filename) {
+  if (!filename) return;
+  const filePath = path.join(UPLOADS_DIR, filename);
+  if (!fs.existsSync(filePath)) return;
+  try {
+    fs.unlinkSync(filePath);
+  } catch (err) {
+    console.warn('Upload cleanup error:', err.message);
+  }
 }
 
 // ----------------------------------------------------
@@ -428,66 +531,70 @@ app.get('/api/session', asyncHandler(async (req, res) => {
 // 3. Update Session Settings (Speaker)
 app.put('/api/session', asyncHandler(async (req, res) => {
   const { title, subtitle, badge, topic, description, maxFileSizeMB, teams } = req.body;
-  const store = await getFreshStore();
+  const session = await mutateStore(store => {
+    if (title) store.session.title = title.trim();
+    if (subtitle !== undefined) store.session.subtitle = subtitle.trim();
+    if (badge !== undefined) store.session.badge = badge.trim();
+    if (topic !== undefined) store.session.topic = topic.trim();
+    if (description !== undefined) store.session.description = description.trim();
+    if (maxFileSizeMB) store.session.maxFileSizeMB = Number(maxFileSizeMB) || 25;
 
-  if (title) store.session.title = title.trim();
-  if (subtitle !== undefined) store.session.subtitle = subtitle.trim();
-  if (badge !== undefined) store.session.badge = badge.trim();
-  if (topic !== undefined) store.session.topic = topic.trim();
-  if (description !== undefined) store.session.description = description.trim();
-  if (maxFileSizeMB) store.session.maxFileSizeMB = Number(maxFileSizeMB) || 25;
+    if (Array.isArray(teams) && teams.length > 0) {
+      store.session.teams = teams.map((t, idx) => ({
+        id: t.id || `team-${idx + 1}`,
+        name: t.name ? t.name.trim() : `ทีม ${idx + 1}`,
+        code: t.code ? t.code.trim() : String(idx + 1),
+        color: t.color || '#1E5AF6',
+        bg: t.bg || '#EFF6FF'
+      }));
+    }
 
-  if (Array.isArray(teams) && teams.length > 0) {
-    store.session.teams = teams.map((t, idx) => ({
-      id: t.id || `team-${idx + 1}`,
-      name: t.name ? t.name.trim() : `ทีม ${idx + 1}`,
-      code: t.code ? t.code.trim() : String(idx + 1),
-      color: t.color || '#1E5AF6',
-      bg: t.bg || '#EFF6FF'
-    }));
-  }
-
-  await saveStore(store);
-  res.json({ success: true, session: store.session });
+    return { value: cloneStore(store.session) };
+  });
+  res.json({ success: true, session });
 }));
 
 // 4. Toggle Reveal Mode (Speaker)
 app.post('/api/session/toggle-reveal', asyncHandler(async (req, res) => {
-  const store = await getFreshStore();
-  if (typeof req.body.reveal === 'boolean') {
-    store.session.revealSubmissions = req.body.reveal;
-  } else {
-    store.session.revealSubmissions = !store.session.revealSubmissions;
-  }
-  await saveStore(store);
-  res.json({ success: true, revealSubmissions: store.session.revealSubmissions });
+  const revealSubmissions = await mutateStore(store => {
+    if (typeof req.body.reveal === 'boolean') {
+      store.session.revealSubmissions = req.body.reveal;
+    } else {
+      store.session.revealSubmissions = !store.session.revealSubmissions;
+    }
+    return { value: store.session.revealSubmissions };
+  });
+  res.json({ success: true, revealSubmissions });
 }));
 
 // 5. Reset Submissions
 app.post('/api/session/reset', asyncHandler(async (req, res) => {
-  const store = await getFreshStore();
   const backupFilename = `backup_submissions_${Date.now()}.json`;
-  try {
-    fs.writeFileSync(path.join(DATA_DIR, backupFilename), JSON.stringify(store.submissions, null, 2));
-  } catch (e) {
-    console.warn('Backup error:', e);
-  }
-
-  store.submissions.forEach(sub => {
-    if (sub.filename) {
-      const p = path.join(UPLOADS_DIR, sub.filename);
-      if (fs.existsSync(p)) {
-        try { fs.unlinkSync(p); } catch (err) {}
+  const resetResult = await mutateStore(store => {
+    const previousSubmissions = cloneStore(store.submissions);
+    store.submissions = [];
+    store.session.revealSubmissions = false;
+    store.session.id = 'sess_' + Date.now();
+    return {
+      value: {
+        backupFilename,
+        previousSubmissions
       }
+    };
+  }, async ({ backupFilename: committedBackupFilename, previousSubmissions }) => {
+    try {
+      fs.writeFileSync(
+        path.join(DATA_DIR, committedBackupFilename),
+        JSON.stringify(previousSubmissions, null, 2)
+      );
+    } catch (e) {
+      console.warn('Backup error:', e.message);
     }
+
+    previousSubmissions.forEach(sub => removeUploadFile(sub.filename));
   });
 
-  store.submissions = [];
-  store.session.revealSubmissions = false;
-  store.session.id = 'sess_' + Date.now();
-  await saveStore(store);
-
-  res.json({ success: true, message: 'รีเซ็ตข้อมูลผลงานและล้างไฟล์เรียบร้อยแล้ว', backup: backupFilename });
+  res.json({ success: true, message: 'รีเซ็ตข้อมูลผลงานและล้างไฟล์เรียบร้อยแล้ว', backup: resetResult.backupFilename });
 }));
 
 // 6. Get Submissions List (Chronological: Newest First)
@@ -575,31 +682,17 @@ app.post('/api/upload', (req, res) => {
     }
 
     try {
-      const store = await getFreshStore();
       const { teamId, submitterName, title, caption } = req.body;
 
       if (!teamId) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        removeUploadFile(req.file && req.file.filename);
         return res.status(400).json({ error: 'กรุณาเลือกทีม' });
       }
 
       if (!req.file || req.file.size === 0) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        removeUploadFile(req.file && req.file.filename);
         return res.status(400).json({ error: 'กรุณาเลือกไฟล์ที่ต้องการส่ง (ขนาดต้องมากกว่า 0 ไบต์)' });
       }
-
-      const allowedBytes = (store.session.maxFileSizeMB || 25) * 1024 * 1024;
-      if (req.file.size > allowedBytes) {
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        return res.status(400).json({ error: `ขนาดไฟล์เกินกำหนด (${store.session.maxFileSizeMB}MB)` });
-      }
-
-      const team = store.session.teams.find(t => t.id === teamId) || {
-        id: teamId,
-        name: teamId,
-        color: '#1E5AF6',
-        bg: '#EFF6FF'
-      };
 
       const isImage = req.file.mimetype ? req.file.mimetype.startsWith('image/') : false;
       let fileUrl = `/uploads/${req.file.filename}`;
@@ -616,14 +709,13 @@ app.post('/api/upload', (req, res) => {
         }
       }
 
-      const newSubmission = {
+      const clientRequestId = String(
+        req.body.clientRequestId || req.get('Idempotency-Key') || `upload_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`
+      ).trim().substring(0, 120);
+      const submissionBase = {
         id: 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        teamId: team.id,
-        teamName: team.name,
-        teamColor: team.color,
-        teamBg: team.bg,
         submitterName: (submitterName || '').trim() || 'สมาชิกในทีม',
-        title: (title || '').trim() || req.file.originalname || `ผลงาน ${team.name}`,
+        title: (title || '').trim() || req.file.originalname || 'ผลงานทีม',
         caption: (caption || '').trim(),
         filename: req.file.filename,
         originalname: req.file.originalname,
@@ -633,20 +725,55 @@ app.post('/api/upload', (req, res) => {
         fileUrl: fileUrl,
         likes: 0,
         createdAt: new Date().toISOString(),
-        updatedAt: null
+        updatedAt: null,
+        clientRequestId
       };
 
-      store.submissions.push(newSubmission);
-      await saveStore(store);
+      const mutationResult = await mutateStore(store => {
+        const existing = store.submissions.find(sub => sub.clientRequestId === clientRequestId);
+        if (existing) {
+          return { save: false, value: { submission: existing, reused: true } };
+        }
 
-      res.status(201).json({
+        const allowedBytes = (store.session.maxFileSizeMB || 25) * 1024 * 1024;
+        if (req.file.size > allowedBytes) {
+          throw new PersistenceError(
+            `ขนาดไฟล์เกินกำหนด (${store.session.maxFileSizeMB || 25}MB)`,
+            400,
+            'UPLOAD_VALIDATION_ERROR'
+          );
+        }
+
+        const team = store.session.teams.find(t => t.id === teamId) || {
+          id: teamId,
+          name: teamId,
+          color: '#1E5AF6',
+          bg: '#EFF6FF'
+        };
+        const newSubmission = {
+          ...submissionBase,
+          teamId: team.id,
+          teamName: team.name,
+          teamColor: team.color,
+          teamBg: team.bg,
+          title: submissionBase.title === 'ผลงานทีม' ? `ผลงาน ${team.name}` : submissionBase.title
+        };
+        store.submissions.push(newSubmission);
+        return { value: { submission: newSubmission, reused: false } };
+      });
+
+      if (mutationResult.reused) {
+        removeUploadFile(req.file.filename);
+      }
+
+      res.status(mutationResult.reused ? 200 : 201).json({
         success: true,
         message: 'ส่งผลงานสำเร็จแล้ว!',
-        submission: newSubmission
+        submission: mutationResult.submission
       });
     } catch (e) {
       console.error('Upload error:', e);
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      removeUploadFile(req.file && req.file.filename);
       res.status(e.statusCode || 500).json({
         error: e.statusCode ? e.message : 'เกิดข้อผิดพลาดในการบันทึกผลงาน',
         code: e.code || 'UPLOAD_ERROR'
@@ -659,43 +786,16 @@ app.post('/api/upload', (req, res) => {
 app.put('/api/submissions/:id', (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
+      removeUploadFile(req.file && req.file.filename);
       return res.status(400).json({ error: err.message });
     }
 
     try {
-      const store = await getFreshStore();
-      const sub = store.submissions.find(s => s.id === req.params.id);
-
-      if (!sub) {
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        return res.status(404).json({ error: 'ไม่พบผลงานที่ต้องการแก้ไข' });
-      }
-
       const { teamId, submitterName, title, caption } = req.body;
+      const editTimestamp = new Date().toISOString();
+      let replacement = null;
 
-      if (teamId) {
-        const team = store.session.teams.find(t => t.id === teamId);
-        if (team) {
-          sub.teamId = team.id;
-          sub.teamName = team.name;
-          sub.teamColor = team.color;
-          sub.teamBg = team.bg;
-        }
-      }
-
-      if (submitterName !== undefined) sub.submitterName = submitterName.trim() || sub.submitterName;
-      if (title !== undefined) sub.title = title.trim() || sub.title;
-      if (caption !== undefined) sub.caption = caption.trim();
-
-      // If user replaced file
       if (req.file && req.file.size > 0) {
-        if (sub.filename) {
-          const oldPath = path.join(UPLOADS_DIR, sub.filename);
-          if (fs.existsSync(oldPath)) {
-            try { fs.unlinkSync(oldPath); } catch (e) {}
-          }
-        }
-
         const isImage = req.file.mimetype ? req.file.mimetype.startsWith('image/') : false;
         let fileUrl = `/uploads/${req.file.filename}`;
         if (isImage && req.file.path && fs.existsSync(req.file.path)) {
@@ -704,27 +804,76 @@ app.put('/api/submissions/:id', (req, res) => {
             if (fileBuf.length <= 8 * 1024 * 1024) {
               fileUrl = `data:${req.file.mimetype || 'image/jpeg'};base64,${fileBuf.toString('base64')}`;
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('Base64 replacement note:', e.message);
+          }
         }
-
-        sub.filename = req.file.filename;
-        sub.originalname = req.file.originalname;
-        sub.mimetype = req.file.mimetype;
-        sub.fileType = isImage ? 'image' : 'document';
-        sub.size = req.file.size;
-        sub.fileUrl = fileUrl;
+        replacement = {
+          filename: req.file.filename,
+          originalname: req.file.originalname,
+          mimetype: req.file.mimetype,
+          fileType: isImage ? 'image' : 'document',
+          size: req.file.size,
+          fileUrl
+        };
+      } else if (req.file) {
+        removeUploadFile(req.file.filename);
       }
 
-      sub.updatedAt = new Date().toISOString();
-      await saveStore(store);
+      const mutationResult = await mutateStore(store => {
+        const sub = store.submissions.find(s => s.id === req.params.id);
+        if (!sub) {
+          return { save: false, value: { notFound: true } };
+        }
+
+        if (teamId) {
+          const team = store.session.teams.find(t => t.id === teamId);
+          if (team) {
+            sub.teamId = team.id;
+            sub.teamName = team.name;
+            sub.teamColor = team.color;
+            sub.teamBg = team.bg;
+          }
+        }
+
+        if (submitterName !== undefined) sub.submitterName = submitterName.trim() || sub.submitterName;
+        if (title !== undefined) sub.title = title.trim() || sub.title;
+        if (caption !== undefined) sub.caption = caption.trim();
+
+        const oldFilename = replacement ? sub.filename : null;
+        if (replacement) {
+          const allowedBytes = (store.session.maxFileSizeMB || 25) * 1024 * 1024;
+          if (replacement.size > allowedBytes) {
+            throw new PersistenceError(
+              `ขนาดไฟล์เกินกำหนด (${store.session.maxFileSizeMB || 25}MB)`,
+              400,
+              'EDIT_VALIDATION_ERROR'
+            );
+          }
+          Object.assign(sub, replacement);
+        }
+
+        sub.updatedAt = editTimestamp;
+        return { value: { submission: sub, oldFilename } };
+      }, ({ oldFilename }) => {
+        if (oldFilename && oldFilename !== replacement.filename) {
+          removeUploadFile(oldFilename);
+        }
+      });
+
+      if (mutationResult.notFound) {
+        removeUploadFile(req.file && req.file.filename);
+        return res.status(404).json({ error: 'ไม่พบผลงานที่ต้องการแก้ไข' });
+      }
 
       res.json({
         success: true,
         message: 'แก้ไขข้อมูลผลงานเรียบร้อยแล้ว',
-        submission: sub
+        submission: mutationResult.submission
       });
     } catch (e) {
       console.error('Edit error:', e);
+      removeUploadFile(req.file && req.file.filename);
       res.status(e.statusCode || 500).json({
         error: e.statusCode ? e.message : 'เกิดข้อผิดพลาดในการแก้ไขผลงาน',
         code: e.code || 'EDIT_ERROR'
@@ -735,40 +884,42 @@ app.put('/api/submissions/:id', (req, res) => {
 
 // 10. Delete Submission
 app.delete('/api/submissions/:id', asyncHandler(async (req, res) => {
-  const store = await getFreshStore();
-  const index = store.submissions.findIndex(s => s.id === req.params.id);
+  const mutationResult = await mutateStore(store => {
+    const index = store.submissions.findIndex(s => s.id === req.params.id);
+    if (index === -1) {
+      return { save: false, value: { notFound: true } };
+    }
 
-  if (index === -1) {
+    const [sub] = store.submissions.splice(index, 1);
+    return { value: { deletedFilename: sub.filename } };
+  }, ({ deletedFilename }) => {
+    removeUploadFile(deletedFilename);
+  });
+
+  if (mutationResult.notFound) {
     return res.status(404).json({ error: 'ไม่พบผลงานที่ต้องการลบ' });
   }
-
-  const sub = store.submissions[index];
-  if (sub.filename) {
-    const p = path.join(UPLOADS_DIR, sub.filename);
-    if (fs.existsSync(p)) {
-      try { fs.unlinkSync(p); } catch (err) {}
-    }
-  }
-
-  store.submissions.splice(index, 1);
-  await saveStore(store);
 
   res.json({ success: true, message: 'ลบผลงานเรียบร้อยแล้ว' });
 }));
 
 // 11. Like Submission
 app.post('/api/submissions/:id/like', asyncHandler(async (req, res) => {
-  const store = await getFreshStore();
-  const sub = store.submissions.find(s => s.id === req.params.id);
+  const mutationResult = await mutateStore(store => {
+    const sub = store.submissions.find(s => s.id === req.params.id);
+    if (!sub) {
+      return { save: false, value: { notFound: true } };
+    }
 
-  if (!sub) {
+    sub.likes = (sub.likes || 0) + 1;
+    return { value: { likes: sub.likes } };
+  });
+
+  if (mutationResult.notFound) {
     return res.status(404).json({ error: 'ไม่พบผลงานนี้' });
   }
 
-  sub.likes = (sub.likes || 0) + 1;
-  await saveStore(store);
-
-  res.json({ success: true, likes: sub.likes });
+  res.json({ success: true, likes: mutationResult.likes });
 }));
 
 // 12. Export ZIP
