@@ -1,13 +1,13 @@
 {
   "session": {
-    "id": "sess_1787555478396",
+    "id": "sess_1788340799557",
     "title": "AI Workshop: มาทำงานร่วมกับ ChatGPT กัน",
     "subtitle": "พื้นฐาน การใช้งาน และแนวคิดสำคัญ สำหรับทีมงานและผู้บริหาร",
     "badge": "AI WORKSHOP | สำหรับองค์กร",
     "topic": "ภารกิจ: ใช้ AI ยังไง? ส่งภาพผลงานและไอเดียการประยุกต์ใช้",
     "description": "ให้แต่ละทีมออกแบบหรือสร้างสรรค์ผลงานด้วย AI แล้วอัปโหลดรูปภาพผลงานเพื่อร่วมแข่งขันและนำเสนอ",
     "maxFileSizeMB": 25,
-    "revealSubmissions": true,
+    "revealSubmissions": false,
     "teams": [
       {
         "id": "team-1",
@@ -54,64 +54,6 @@
     ],
     "createdAt": "2026-08-23T17:30:24.411Z"
   },
-  "submissions": [
-    {
-      "id": "sub_1787555639085_s7n3zp",
-      "teamId": "team-1",
-      "teamName": "ทีม 1",
-      "teamColor": "#1E5AF6",
-      "teamBg": "#EFF6FF",
-      "submitterName": "น้องเมย์ (ทีม 1)",
-      "title": "banner_chatgpt.png",
-      "caption": "Prompt: Ultra detailed AI generated presentation slide for marketing workshop.",
-      "filename": "1787555638676-784129-banner_chatgpt.png",
-      "originalname": "banner_chatgpt.png",
-      "mimetype": "image/png",
-      "fileType": "image",
-      "size": 734621,
-      "fileUrl": "/uploads/1787555638676-784129-banner_chatgpt.png",
-      "likes": 0,
-      "createdAt": "2026-08-24T07:13:59.085Z",
-      "updatedAt": null
-    },
-    {
-      "id": "sub_1787557967545_l6o5jo",
-      "teamId": "team-3",
-      "teamName": "ทีม 3",
-      "teamColor": "#10B981",
-      "teamBg": "#ECFDF5",
-      "submitterName": "เมย์ & วิน (ทีม 3)",
-      "title": "banner_chatgpt.png",
-      "caption": "Tested on Team Swimlane Row layout.",
-      "filename": "1787557966823-328241-banner_chatgpt.png",
-      "originalname": "banner_chatgpt.png",
-      "mimetype": "image/png",
-      "fileType": "image",
-      "size": 734621,
-      "fileUrl": "/uploads/1787557966823-328241-banner_chatgpt.png",
-      "likes": 0,
-      "createdAt": "2026-08-24T07:52:47.545Z",
-      "updatedAt": null
-    },
-    {
-      "id": "sub_1787558731991_tfqr62",
-      "teamId": "team-4",
-      "teamName": "ทีม 4",
-      "teamColor": "#F59E0B",
-      "teamBg": "#FFFBEB",
-      "submitterName": "สมาชิกในทีม",
-      "title": "IMG_9901.jpeg",
-      "caption": "Test แมว",
-      "filename": "1787558730522-656036-IMG_9901.jpeg",
-      "originalname": "IMG_9901.jpeg",
-      "mimetype": "image/jpeg",
-      "fileType": "image",
-      "size": 3547947,
-      "fileUrl": "/uploads/1787558730522-656036-IMG_9901.jpeg",
-      "likes": 0,
-      "createdAt": "2026-08-24T08:05:31.991Z",
-      "updatedAt": null
-    }
-  ],
+  "submissions": [],
   "last_synced_at": 1788150500000
 }
