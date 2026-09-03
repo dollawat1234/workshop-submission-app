@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const crypto = require('crypto');
 const archiver = require('archiver');
 
 const app = express();
@@ -11,17 +12,24 @@ const PORT = process.env.PORT || 3000;
 const isVercel = Boolean(process.env.VERCEL);
 
 // GitHub Cloud Persistence Configuration
-// Never embed a GitHub token in source code. Configure it in Vercel/project env vars.
+// Never embed a GitHub token in source code. Configure secrets in the host environment.
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_REPO = process.env.GITHUB_REPO || 'dollawat1234/workshop-submission-app';
 const GITHUB_STORE_FILE = 'data/store.json';
 const ALLOW_GITHUB_BOOTSTRAP = process.env.GITHUB_BOOTSTRAP === 'true';
+const SPEAKER_KEY = process.env.SPEAKER_KEY || '';
+const REQUIRE_SPEAKER_AUTH = process.env.REQUIRE_SPEAKER_AUTH !== 'false'
+  && (isVercel || process.env.NODE_ENV === 'production');
 
-// Directories (Vercel uses /tmp for writable storage)
-const DATA_DIR = isVercel ? path.join(os.tmpdir(), 'workshop-data') : path.join(__dirname, 'data');
+// Directories. Set STORAGE_ROOT to a persistent mounted directory in Docker.
+// Vercel still defaults to /tmp, while local development keeps the repository layout.
+const STORAGE_ROOT = process.env.STORAGE_ROOT
+  ? path.resolve(process.env.STORAGE_ROOT)
+  : (isVercel ? path.join(os.tmpdir(), 'workshop-storage') : __dirname);
+const DATA_DIR = path.join(STORAGE_ROOT, 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const SEED_STORE_PATH = path.join(__dirname, 'data', 'store.json');
-const UPLOADS_DIR = isVercel ? path.join(os.tmpdir(), 'workshop-uploads') : path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(STORAGE_ROOT, 'uploads');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -73,6 +81,109 @@ const asyncHandler = (handler) => (req, res, next) => {
 
 function cloneStore(store) {
   return JSON.parse(JSON.stringify(store));
+}
+
+function isSpeakerKeyValid(req) {
+  if (!REQUIRE_SPEAKER_AUTH) return true;
+  if (!SPEAKER_KEY) return false;
+
+  const providedKey = String(req.get('X-TeamGame-Speaker-Key') || '');
+  const providedBuffer = Buffer.from(providedKey);
+  const expectedBuffer = Buffer.from(SPEAKER_KEY);
+  return providedBuffer.length === expectedBuffer.length
+    && crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+function sendSpeakerAuthError(res) {
+  if (REQUIRE_SPEAKER_AUTH && !SPEAKER_KEY) {
+    return res.status(503).json({
+      error: 'ระบบวิทยากรยังไม่ได้ตั้งค่ารหัสผ่าน',
+      code: 'SPEAKER_AUTH_NOT_CONFIGURED'
+    });
+  }
+
+  return res.status(401).json({
+    error: 'กรุณายืนยันตัวตนในฐานะวิทยากร',
+    code: 'SPEAKER_AUTH_REQUIRED'
+  });
+}
+
+function requireSpeakerAuth(req, res, next) {
+  if (isSpeakerKeyValid(req)) return next();
+  return sendSpeakerAuthError(res);
+}
+
+function ensureSpeakerViewAuth(req, res) {
+  if (req.query.view !== 'speaker' || isSpeakerKeyValid(req)) return true;
+  sendSpeakerAuthError(res);
+  return false;
+}
+
+async function createFullBackup({ backupFilename, session, submissions }) {
+  const backupPath = path.join(DATA_DIR, backupFilename);
+  const files = [];
+  const missingFiles = [];
+
+  for (const submission of submissions || []) {
+    const filename = typeof submission.filename === 'string'
+      ? path.basename(submission.filename)
+      : '';
+    if (!filename) continue;
+
+    const filePath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      files.push({
+        filename,
+        filePath,
+        size: fs.statSync(filePath).size
+      });
+    } else if (!String(submission.fileUrl || '').startsWith('data:')) {
+      missingFiles.push(filename);
+    }
+  }
+
+  if (missingFiles.length > 0) {
+    throw new PersistenceError(
+      `สร้าง Full Backup ไม่ครบ ไฟล์หาย: ${missingFiles.join(', ')}`,
+      500,
+      'BACKUP_INCOMPLETE'
+    );
+  }
+
+  await fs.promises.mkdir(DATA_DIR, { recursive: true });
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(backupPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    let settled = false;
+
+    const fail = err => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+
+    output.on('close', () => {
+      if (settled) return;
+      settled = true;
+      resolve(backupPath);
+    });
+    output.on('error', fail);
+    archive.on('error', fail);
+    archive.pipe(output);
+    archive.append(JSON.stringify({
+      createdAt: new Date().toISOString(),
+      session,
+      submissions
+    }, null, 2), { name: 'snapshot.json' });
+    archive.append(JSON.stringify({
+      files: files.map(file => ({ filename: file.filename, size: file.size }))
+    }, null, 2), { name: 'manifest.json' });
+
+    files.forEach(file => {
+      archive.file(file.filePath, { name: `uploads/${file.filename}` });
+    });
+    archive.finalize();
+  });
 }
 
 function loadStoreFromFile(filePath) {
@@ -298,7 +409,7 @@ function waitForMutationRetry(attempt) {
 // compare-and-swap across serverless instances; on conflict we re-read the
 // newest store and replay the pure mutation. Local requests are additionally
 // serialized because there is no remote SHA to arbitrate file writes.
-async function mutateStore(mutator, onCommitted) {
+async function mutateStore(mutator, onCommitted, beforeCommit) {
   const execute = async () => {
     let lastConflict = null;
 
@@ -311,6 +422,7 @@ async function mutateStore(mutator, onCommitted) {
       }
 
       try {
+        if (beforeCommit) await beforeCommit(outcome && outcome.value, store);
         await saveStore(store);
         if (onCommitted) await onCommitted(outcome && outcome.value, store);
         return outcome && Object.prototype.hasOwnProperty.call(outcome, 'value')
@@ -529,7 +641,7 @@ app.get('/api/session', asyncHandler(async (req, res) => {
 }));
 
 // 3. Update Session Settings (Speaker)
-app.put('/api/session', asyncHandler(async (req, res) => {
+app.put('/api/session', requireSpeakerAuth, asyncHandler(async (req, res) => {
   const { title, subtitle, badge, topic, description, maxFileSizeMB, teams } = req.body;
   const session = await mutateStore(store => {
     if (title) store.session.title = title.trim();
@@ -555,7 +667,7 @@ app.put('/api/session', asyncHandler(async (req, res) => {
 }));
 
 // 4. Toggle Reveal Mode (Speaker)
-app.post('/api/session/toggle-reveal', asyncHandler(async (req, res) => {
+app.post('/api/session/toggle-reveal', requireSpeakerAuth, asyncHandler(async (req, res) => {
   const revealSubmissions = await mutateStore(store => {
     if (typeof req.body.reveal === 'boolean') {
       store.session.revealSubmissions = req.body.reveal;
@@ -568,30 +680,29 @@ app.post('/api/session/toggle-reveal', asyncHandler(async (req, res) => {
 }));
 
 // 5. Reset Submissions
-app.post('/api/session/reset', asyncHandler(async (req, res) => {
-  const backupFilename = `backup_submissions_${Date.now()}.json`;
+app.post('/api/session/reset', requireSpeakerAuth, asyncHandler(async (req, res) => {
+  const backupFilename = `backup_submissions_${Date.now()}.zip`;
   const resetResult = await mutateStore(store => {
     const previousSubmissions = cloneStore(store.submissions);
+    const previousSession = cloneStore(store.session);
     store.submissions = [];
     store.session.revealSubmissions = false;
     store.session.id = 'sess_' + Date.now();
     return {
       value: {
         backupFilename,
-        previousSubmissions
+        previousSubmissions,
+        previousSession
       }
     };
   }, async ({ backupFilename: committedBackupFilename, previousSubmissions }) => {
-    try {
-      fs.writeFileSync(
-        path.join(DATA_DIR, committedBackupFilename),
-        JSON.stringify(previousSubmissions, null, 2)
-      );
-    } catch (e) {
-      console.warn('Backup error:', e.message);
-    }
-
     previousSubmissions.forEach(sub => removeUploadFile(sub.filename));
+  }, async ({ backupFilename: pendingBackupFilename, previousSubmissions, previousSession }) => {
+    await createFullBackup({
+      backupFilename: pendingBackupFilename,
+      session: previousSession,
+      submissions: previousSubmissions
+    });
   });
 
   res.json({ success: true, message: 'รีเซ็ตข้อมูลผลงานและล้างไฟล์เรียบร้อยแล้ว', backup: resetResult.backupFilename });
@@ -599,6 +710,7 @@ app.post('/api/session/reset', asyncHandler(async (req, res) => {
 
 // 6. Get Submissions List (Chronological: Newest First)
 app.get('/api/submissions', asyncHandler(async (req, res) => {
+  if (!ensureSpeakerViewAuth(req, res)) return;
   const store = await getFreshStore();
   const isSpeaker = req.query.view === 'speaker';
   const queryTeamId = req.query.teamId;
@@ -637,6 +749,7 @@ app.get('/api/submissions', asyncHandler(async (req, res) => {
 
 // 7. Get Single Submission Detail
 app.get('/api/submissions/:id', asyncHandler(async (req, res) => {
+  if (!ensureSpeakerViewAuth(req, res)) return;
   const store = await getFreshStore();
   const sub = store.submissions.find(s => s.id === req.params.id);
   if (!sub) {
@@ -783,7 +896,7 @@ app.post('/api/upload', (req, res) => {
 });
 
 // 9. Edit Submission (Update Details or Replace File)
-app.put('/api/submissions/:id', (req, res) => {
+app.put('/api/submissions/:id', requireSpeakerAuth, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
       removeUploadFile(req.file && req.file.filename);
@@ -883,7 +996,7 @@ app.put('/api/submissions/:id', (req, res) => {
 });
 
 // 10. Delete Submission
-app.delete('/api/submissions/:id', asyncHandler(async (req, res) => {
+app.delete('/api/submissions/:id', requireSpeakerAuth, asyncHandler(async (req, res) => {
   const mutationResult = await mutateStore(store => {
     const index = store.submissions.findIndex(s => s.id === req.params.id);
     if (index === -1) {
@@ -923,7 +1036,7 @@ app.post('/api/submissions/:id/like', asyncHandler(async (req, res) => {
 }));
 
 // 12. Export ZIP
-app.get('/api/export/zip', asyncHandler(async (req, res) => {
+app.get('/api/export/zip', requireSpeakerAuth, asyncHandler(async (req, res) => {
   const store = await getFreshStore();
   const archive = archiver('zip', { zlib: { level: 9 } });
 

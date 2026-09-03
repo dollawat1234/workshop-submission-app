@@ -56,7 +56,18 @@ npm start
 - `GITHUB_TOKEN`: GitHub token ที่มีสิทธิ์อ่านและเขียนไฟล์ Contents ของ repository
 - `GITHUB_REPO`: ค่าเริ่มต้นคือ `dollawat1234/workshop-submission-app` หากใช้ repository อื่นให้กำหนดค่านี้เพิ่ม
 - `GITHUB_BOOTSTRAP`: ตั้งเป็น `true` เฉพาะตอนเริ่ม repository ใหม่และต้องการสร้าง `data/store.json` จาก seed ใน repo; หลัง bootstrap ควรลบหรือปิดค่าเป็น `false`
+- `STORAGE_ROOT`: โฟลเดอร์รากสำหรับข้อมูลถาวรของ Docker เช่น `/var/lib/teamgame`; ระบบจะใช้ `${STORAGE_ROOT}/data` และ `${STORAGE_ROOT}/uploads`
+- `SPEAKER_KEY`: รหัสลับสำหรับหน้าวิทยากรและ API ที่แก้ไข/ลบ/รีเซ็ตข้อมูล
+- `REQUIRE_SPEAKER_AUTH`: ตั้งเป็น `true` ใน production เพื่อบังคับรหัสวิทยากร; ค่าเริ่มต้นของ local development ปิดไว้
 
 ห้ามใส่ token ลงใน source code หรือ commit ลง Git หากไม่มี `GITHUB_TOKEN` ระบบจะตอบสถานะ `503` เพื่อป้องกันการรับงานสำเร็จหลอก ๆ แล้วข้อมูลหายเมื่อเปลี่ยน Serverless Instance หาก token เคยถูก commit หรือเผยแพร่แล้ว ควร revoke และสร้าง token ใหม่ก่อน deploy
 
 ทุกการแก้ไขข้อมูลใช้ GitHub file SHA แบบ compare-and-swap และ retry/rebase เมื่อมีผู้ใช้หลายคนส่งพร้อมกัน ส่วนการส่งไฟล์ใช้ idempotency key เพื่อให้การกดส่งซ้ำหลังสัญญาณขัดข้องไม่สร้างผลงานซ้ำ
+
+### การ Deploy บน Hostinger VPS
+
+สำหรับ Docker ที่มี Persistent Volume ให้กำหนด `STORAGE_ROOT=/var/lib/teamgame` และ mount โฟลเดอร์บนเครื่องจริงไปยัง `/var/lib/teamgame` ใน container ห้ามเก็บข้อมูลสำคัญไว้เฉพาะใน image เพราะไฟล์จะถูกแทนที่เมื่อ build ใหม่
+
+ระบบจะสร้าง Full Backup เป็นไฟล์ ZIP ก่อนคำสั่ง Reset โดยรวม `snapshot.json`, `manifest.json` และไฟล์ใน `uploads` ที่ถูกอ้างอิงอยู่ หากสร้าง Backup ไม่ครบ ระบบจะไม่ดำเนินการ Reset เพื่อป้องกันการลบไฟล์โดยไม่มีสำเนา
+
+สามารถสร้าง Backup ของ Persistent Volume ได้ด้วย `bash ops/backup.sh` ซึ่งจะเก็บทั้ง `data` และ `uploads` ไว้ในโฟลเดอร์ `backups`

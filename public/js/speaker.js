@@ -24,6 +24,36 @@ let activePollController = null;
 let mutationSequence = 0;
 let hasLoadedDashboard = false;
 const pendingDeletedIds = new Set();
+const SPEAKER_KEY_STORAGE = 'teamgameSpeakerKey';
+let speakerKeyPrompted = false;
+
+function getSpeakerKey() {
+  let key = sessionStorage.getItem(SPEAKER_KEY_STORAGE) || '';
+  if (!key && !speakerKeyPrompted) {
+    speakerKeyPrompted = true;
+    key = (window.prompt('กรุณากรอกรหัสวิทยากรเพื่อจัดการระบบ') || '').trim();
+    if (key) sessionStorage.setItem(SPEAKER_KEY_STORAGE, key);
+  }
+  return key;
+}
+
+function withSpeakerAuth(init = {}) {
+  const headers = new Headers(init.headers || {});
+  const key = getSpeakerKey();
+  if (key) headers.set('X-TeamGame-Speaker-Key', key);
+  return { ...init, headers };
+}
+
+async function fetchSpeaker(url, init = {}, retryAuth = true) {
+  const response = await fetch(url, withSpeakerAuth(init));
+  if (response.status === 401 && retryAuth) {
+    sessionStorage.removeItem(SPEAKER_KEY_STORAGE);
+    speakerKeyPrompted = false;
+    const key = getSpeakerKey();
+    if (key) return fetchSpeaker(url, init, false);
+  }
+  return response;
+}
 
 // 1. Global Reveal Mode Handlers
 window.setRevealMode = async function (shouldReveal) {
@@ -41,7 +71,7 @@ window.setRevealMode = async function (shouldReveal) {
   }
 
   try {
-    const res = await fetch('/api/session/toggle-reveal', {
+    const res = await fetchSpeaker('/api/session/toggle-reveal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reveal: shouldReveal })
@@ -152,7 +182,7 @@ async function fetchAllData() {
     const controller = new AbortController();
     const [sessionRes, subsRes] = await Promise.all([
       fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal }),
-      fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
+      fetchSpeaker(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
     ]);
 
     if (!sessionRes.ok || !subsRes.ok) throw new Error('Network error');
@@ -536,7 +566,7 @@ async function deleteSubmission(id) {
   renderTeamColumns();
 
   try {
-    const res = await fetch(`/api/submissions/${id}?_t=${Date.now()}`, { method: 'DELETE' });
+    const res = await fetchSpeaker(`/api/submissions/${id}?_t=${Date.now()}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'ไม่สามารถลบผลงานได้');
     await fetchAllData();
@@ -644,7 +674,7 @@ function toggleTheaterMode() {
 // 9. Speaker Edit Modal Logic
 async function openSpeakerEditModal(submissionId) {
   try {
-    const res = await fetch(`/api/submissions/${submissionId}?view=speaker`);
+    const res = await fetchSpeaker(`/api/submissions/${submissionId}?view=speaker`);
     const data = await res.json();
     if (!data.success || !data.submission) throw new Error('Not found');
 
@@ -697,7 +727,7 @@ async function handleSpeakerEditSubmit(e) {
   saveBtn.textContent = 'กำลังบันทึก...';
 
   try {
-    const res = await fetch(`/api/submissions/${id}`, {
+    const res = await fetchSpeaker(`/api/submissions/${id}`, {
       method: 'PUT',
       body: formData
     });
@@ -810,7 +840,7 @@ function setupEventListeners() {
       renderHeaderAndSession();
       renderTeamColumns();
       try {
-        const res = await fetch(`/api/session/reset?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' });
+        const res = await fetchSpeaker(`/api/session/reset?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' });
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error(data.error || `HTTP ${res.status}`);
         alert(data.message);
@@ -977,7 +1007,7 @@ async function handleSaveSettings(e) {
   });
 
   try {
-    const res = await fetch(`/api/session?_t=${Date.now()}`, {
+    const res = await fetchSpeaker(`/api/session?_t=${Date.now()}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, badge, maxFileSizeMB, teams })
@@ -1015,7 +1045,7 @@ function startAutoPoll() {
     activePollController = controller;
     pollInFlight = true;
 
-    fetch(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
+    fetchSpeaker(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();

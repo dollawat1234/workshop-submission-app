@@ -1,0 +1,7 @@
+.git
+.gitignore
+.env
+.env.*
+node_modules
+*.log
+data/backup_submissions_*.zip
