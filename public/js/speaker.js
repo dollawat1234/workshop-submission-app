@@ -63,7 +63,9 @@ function showSpeakerAuthMessage(status) {
 
   message.textContent = status === 503
     ? 'ระบบยังไม่ได้ตั้งค่ารหัสวิทยากร กรุณาติดต่อผู้ดูแลระบบ'
-    : 'กรุณากรอกรหัสวิทยากรเพื่อดูและจัดการผลงานบนกระดาน';
+    : status === 401
+      ? 'กรุณากรอกรหัสวิทยากรเพื่อดูและจัดการผลงานบนกระดาน'
+      : 'ไม่สามารถโหลดกระดานได้ กรุณาตรวจสอบรหัสวิทยากรหรือการเชื่อมต่อ';
   banner.classList.remove('hidden');
   if (totalCountEl) totalCountEl.textContent = 'ต้องใช้รหัสวิทยากร';
 }
@@ -231,6 +233,7 @@ async function fetchAllData() {
       }
     );
   } catch (err) {
+    if (!hasLoadedDashboard) showSpeakerAuthMessage();
     console.error('Error fetching speaker data:', err);
   } finally {
     fullFetchInFlight = Math.max(0, fullFetchInFlight - 1);
@@ -1201,7 +1204,9 @@ function startAutoPoll() {
           );
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!hasLoadedDashboard) showSpeakerAuthMessage();
+      })
       .finally(() => {
         pollInFlight = false;
         if (activePollController === controller) activePollController = null;
