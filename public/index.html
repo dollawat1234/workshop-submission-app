@@ -110,6 +110,19 @@
     </div>
   </header>
 
+  <div id="speakerAuthMessage" role="alert" aria-live="assertive" class="hidden max-w-[1780px] w-full mx-auto px-3 sm:px-4 pt-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 shadow-sm">
+      <div class="flex items-start gap-2">
+        <i data-lucide="lock-keyhole" class="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-600" aria-hidden="true"></i>
+        <div>
+          <p class="text-sm font-black">กระดานวิทยากรถูกล็อกไว้</p>
+          <p id="speakerAuthMessageText" class="text-xs font-medium">กรุณากรอกรหัสวิทยากรเพื่อดูและจัดการผลงานบนกระดาน</p>
+        </div>
+      </div>
+      <button type="button" id="retrySpeakerAuthBtn" class="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100">กรอกรหัสอีกครั้ง</button>
+    </div>
+  </div>
+
   <!-- Main Stage Area (Left Side Live QR | Right Side Team Swimlane Rows) -->
   <main class="max-w-[1780px] w-full mx-auto px-3 sm:px-4 py-4 flex-1 flex flex-col lg:flex-row gap-4 items-start">
 
@@ -393,6 +406,12 @@
         </div>
 
         <div>
+          <div class="mb-3">
+            <label for="settingTeamCount" class="block font-semibold text-slate-700 mb-1">จำนวนทีม</label>
+            <input type="number" id="settingTeamCount" name="teamCount" min="1" max="12" inputmode="numeric" required aria-describedby="settingTeamCountHelp" class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500">
+            <p id="settingTeamCountHelp" class="text-[10px] text-slate-400 mt-1">กำหนดได้ 1–12 ทีม ระบบจะสร้างรายการทีมตามจำนวนนี้</p>
+          </div>
+
           <div class="flex items-center justify-between mb-2">
             <label class="block font-bold text-slate-800">รายชื่อทีมแข่งขัน</label>
             <button type="button" id="addTeamSettingBtn" class="text-blue-600 hover:text-blue-800 font-bold flex items-center gap-1">

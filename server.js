@@ -651,7 +651,11 @@ app.put('/api/session', requireSpeakerAuth, asyncHandler(async (req, res) => {
     if (description !== undefined) store.session.description = description.trim();
     if (maxFileSizeMB) store.session.maxFileSizeMB = Number(maxFileSizeMB) || 25;
 
-    if (Array.isArray(teams) && teams.length > 0) {
+    if (Array.isArray(teams)) {
+      if (teams.length < 1 || teams.length > 12) {
+        throw new PersistenceError('จำนวนทีมต้องอยู่ระหว่าง 1-12 ทีม', 400, 'TEAM_COUNT_INVALID');
+      }
+
       store.session.teams = teams.map((t, idx) => ({
         id: t.id || `team-${idx + 1}`,
         name: t.name ? t.name.trim() : `ทีม ${idx + 1}`,

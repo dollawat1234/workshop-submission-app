@@ -46,13 +46,37 @@ function withSpeakerAuth(init = {}) {
 
 async function fetchSpeaker(url, init = {}, retryAuth = true) {
   const response = await fetch(url, withSpeakerAuth(init));
-  if (response.status === 401 && retryAuth) {
+  if ((response.status === 401 || response.status === 503) && retryAuth) {
     sessionStorage.removeItem(SPEAKER_KEY_STORAGE);
     speakerKeyPrompted = false;
     const key = getSpeakerKey();
     if (key) return fetchSpeaker(url, init, false);
   }
   return response;
+}
+
+function showSpeakerAuthMessage(status) {
+  const banner = document.getElementById('speakerAuthMessage');
+  const message = document.getElementById('speakerAuthMessageText');
+  const totalCountEl = document.getElementById('headerTotalCount');
+  if (!banner || !message) return;
+
+  message.textContent = status === 503
+    ? 'ระบบยังไม่ได้ตั้งค่ารหัสวิทยากร กรุณาติดต่อผู้ดูแลระบบ'
+    : 'กรุณากรอกรหัสวิทยากรเพื่อดูและจัดการผลงานบนกระดาน';
+  banner.classList.remove('hidden');
+  if (totalCountEl) totalCountEl.textContent = 'ต้องใช้รหัสวิทยากร';
+}
+
+function hideSpeakerAuthMessage() {
+  const banner = document.getElementById('speakerAuthMessage');
+  if (banner) banner.classList.add('hidden');
+}
+
+function retrySpeakerAuth() {
+  sessionStorage.removeItem(SPEAKER_KEY_STORAGE);
+  speakerKeyPrompted = false;
+  fetchAllData();
 }
 
 // 1. Global Reveal Mode Handlers
@@ -184,6 +208,12 @@ async function fetchAllData() {
       fetch(`/api/session?_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal }),
       fetchSpeaker(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
     ]);
+
+    if (subsRes.status === 401 || subsRes.status === 503) {
+      showSpeakerAuthMessage(subsRes.status);
+    } else if (sessionRes.ok && subsRes.ok) {
+      hideSpeakerAuthMessage();
+    }
 
     if (!sessionRes.ok || !subsRes.ok) throw new Error('Network error');
 
@@ -905,27 +935,84 @@ function setupEventListeners() {
   const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   const settingsForm = document.getElementById('settingsForm');
   const addTeamSettingBtn = document.getElementById('addTeamSettingBtn');
+  const settingTeamCount = document.getElementById('settingTeamCount');
+  const retrySpeakerAuthBtn = document.getElementById('retrySpeakerAuthBtn');
 
   if (openSettingsBtn) openSettingsBtn.addEventListener('click', openSettingsModal);
   if (closeSettingsBtn && settingsModal) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   if (cancelSettingsBtn && settingsModal) cancelSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
   if (settingsForm) settingsForm.addEventListener('submit', handleSaveSettings);
   if (addTeamSettingBtn) addTeamSettingBtn.addEventListener('click', addTeamInputRow);
+  if (settingTeamCount) {
+    settingTeamCount.addEventListener('input', () => {
+      if (settingTeamCount.value !== '') syncTeamRowsToCount();
+    });
+    settingTeamCount.addEventListener('change', syncTeamRowsToCount);
+  }
+  if (retrySpeakerAuthBtn) retrySpeakerAuthBtn.addEventListener('click', retrySpeakerAuth);
 }
 
 // 12. Settings Logic
+const MIN_TEAM_COUNT = 1;
+const MAX_TEAM_COUNT = 12;
+
+function getSettingsTeamsContainer() {
+  return document.getElementById('settingsTeamsContainer');
+}
+
+function clampTeamCount(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return MIN_TEAM_COUNT;
+  return Math.min(MAX_TEAM_COUNT, Math.max(MIN_TEAM_COUNT, parsed));
+}
+
+function updateTeamCountFromRows() {
+  const container = getSettingsTeamsContainer();
+  const countInput = document.getElementById('settingTeamCount');
+  if (container && countInput) countInput.value = String(container.querySelectorAll('.team-setting-row').length);
+}
+
+function getNextAvailableTeamId(container) {
+  const usedIds = new Set(
+    Array.from(container.querySelectorAll('.team-setting-row'))
+      .map(row => row.dataset.teamId)
+      .filter(Boolean)
+  );
+  let index = 1;
+  while (usedIds.has(`team-${index}`)) index += 1;
+  return `team-${index}`;
+}
+
+function syncTeamRowsToCount() {
+  const container = getSettingsTeamsContainer();
+  const countInput = document.getElementById('settingTeamCount');
+  if (!container || !countInput || countInput.value === '') return;
+
+  const desiredCount = clampTeamCount(countInput.value);
+  countInput.value = String(desiredCount);
+
+  while (container.querySelectorAll('.team-setting-row').length < desiredCount) {
+    addTeamInputRow();
+  }
+  while (container.querySelectorAll('.team-setting-row').length > desiredCount) {
+    container.lastElementChild.remove();
+  }
+  updateTeamCountFromRows();
+}
+
 function openSettingsModal() {
   if (!currentSession) return;
   document.getElementById('settingTitle').value = currentSession.title || '';
   document.getElementById('settingBadge').value = currentSession.badge || '';
   document.getElementById('settingMaxFileSize').value = currentSession.maxFileSizeMB || 25;
+  document.getElementById('settingTeamCount').value = String((currentSession.teams || []).length || MIN_TEAM_COUNT);
 
   renderSettingsTeamRows();
   document.getElementById('settingsModal').classList.remove('hidden');
 }
 
 function renderSettingsTeamRows() {
-  const container = document.getElementById('teamsSettingContainer');
+  const container = getSettingsTeamsContainer();
   if (!container) return;
   container.innerHTML = '';
 
@@ -933,6 +1020,7 @@ function renderSettingsTeamRows() {
   teams.forEach((team, idx) => {
     const row = document.createElement('div');
     row.className = 'flex items-center gap-2 team-setting-row bg-slate-50 p-2 rounded-xl border border-slate-200';
+    row.dataset.teamId = team.id || `team-${idx + 1}`;
     row.innerHTML = `
       <input type="text" class="setting-team-name flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-brand-500" value="${escapeHtml(team.name)}" placeholder="ชื่อทีม">
       <input type="color" class="setting-team-color w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5" value="${team.color || '#1E5AF6'}">
@@ -949,22 +1037,29 @@ function renderSettingsTeamRows() {
         return;
       }
       row.remove();
+      updateTeamCountFromRows();
     });
 
     container.appendChild(row);
   });
+  updateTeamCountFromRows();
 }
 
 function addTeamInputRow() {
-  const container = document.getElementById('teamsSettingContainer');
+  const container = getSettingsTeamsContainer();
   if (!container) return;
   const currentCount = container.querySelectorAll('.team-setting-row').length;
+  if (currentCount >= MAX_TEAM_COUNT) {
+    alert(`กำหนดได้สูงสุด ${MAX_TEAM_COUNT} ทีม`);
+    return;
+  }
   const newIdx = currentCount + 1;
   const palette = ['#1E5AF6', '#8B5CF6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#6366F1', '#14B8A6'];
   const color = palette[(newIdx - 1) % palette.length];
 
   const row = document.createElement('div');
   row.className = 'flex items-center gap-2 team-setting-row bg-slate-50 p-2 rounded-xl border border-slate-200';
+  row.dataset.teamId = getNextAvailableTeamId(container);
   row.innerHTML = `
     <input type="text" class="setting-team-name flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-brand-500" value="ทีม ${newIdx}" placeholder="ชื่อทีม">
     <input type="color" class="setting-team-color w-8 h-8 rounded-lg border border-slate-200 cursor-pointer p-0.5" value="${color}">
@@ -981,9 +1076,11 @@ function addTeamInputRow() {
       return;
     }
     row.remove();
+    updateTeamCountFromRows();
   });
 
   container.appendChild(row);
+  updateTeamCountFromRows();
 }
 
 async function handleSaveSettings(e) {
@@ -991,20 +1088,45 @@ async function handleSaveSettings(e) {
   const title = document.getElementById('settingTitle').value.trim();
   const badge = document.getElementById('settingBadge').value.trim();
   const maxFileSizeMB = parseInt(document.getElementById('settingMaxFileSize').value) || 25;
+  const teamCountInput = document.getElementById('settingTeamCount');
 
-  const rows = document.querySelectorAll('.team-setting-row');
+  if (!teamCountInput || teamCountInput.value === '') {
+    alert('กรุณาระบุจำนวนทีม');
+    return;
+  }
+
+  const requestedTeamCount = clampTeamCount(teamCountInput.value);
+  teamCountInput.value = String(requestedTeamCount);
+  syncTeamRowsToCount();
+
+  const rows = document.querySelectorAll('#settingsTeamsContainer .team-setting-row');
   const teams = [];
   rows.forEach((r, idx) => {
     const name = r.querySelector('.setting-team-name').value.trim() || `ทีม ${idx + 1}`;
     const color = r.querySelector('.setting-team-color').value || '#1E5AF6';
     teams.push({
-      id: `team-${idx + 1}`,
-      name: name,
+      id: r.dataset.teamId || `team-${idx + 1}`,
+      name,
       code: String(idx + 1),
       color: color,
       bg: color + '15'
     });
   });
+
+  if (!hasLoadedDashboard) {
+    await fetchAllData();
+    if (!hasLoadedDashboard) {
+      alert('กรุณายืนยันรหัสวิทยากรและโหลดข้อมูลก่อนเปลี่ยนจำนวนทีม');
+      return;
+    }
+  }
+
+  const nextTeamIds = new Set(teams.map(team => team.id));
+  const hiddenSubmissionCount = allSubmissions.filter(sub => !nextTeamIds.has(sub.teamId)).length;
+  if (hiddenSubmissionCount > 0) {
+    alert(`บันทึกไม่ได้ เพราะจำนวนทีมใหม่นี้จะซ่อนผลงานเดิม ${hiddenSubmissionCount} ชิ้น กรุณาย้ายผลงานไปทีมอื่นก่อน หรือใช้เมนูรีเซ็ตเมื่อเริ่มรอบใหม่`);
+    return;
+  }
 
   try {
     const res = await fetchSpeaker(`/api/session?_t=${Date.now()}`, {
@@ -1017,7 +1139,8 @@ async function handleSaveSettings(e) {
       document.getElementById('settingsModal').classList.add('hidden');
       fetchAllData();
     } else {
-      alert('ไม่สามารถบันทึกได้');
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'ไม่สามารถบันทึกได้');
     }
   } catch (err) {
     alert('เกิดข้อผิดพลาดในการบันทึก');
@@ -1047,7 +1170,11 @@ function startAutoPoll() {
 
     fetchSpeaker(`/api/submissions?view=speaker&_t=${Date.now()}`, { cache: 'no-store', signal: controller.signal })
       .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 503) showSpeakerAuthMessage(res.status);
+          throw new Error(`HTTP ${res.status}`);
+        }
+        hideSpeakerAuthMessage();
         return res.json();
       })
       .then(data => {

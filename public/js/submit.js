@@ -87,7 +87,7 @@ function renderTeamDropdown(teams) {
   teams.forEach(team => {
     const opt = document.createElement('option');
     opt.value = team.id;
-    opt.textContent = `${team.name} (ส่งแล้ว ${team.submissionCount || 0} ชิ้น)`;
+    opt.textContent = `${team.name} (ส่งแล้ว ${team.count || 0} ชิ้น)`;
     if (selectedTeamId === team.id) {
       opt.selected = true;
     }
@@ -125,7 +125,7 @@ function updateTeamIdentityBanner(teamId) {
   codeEl.style.backgroundColor = team.color || '#1E5AF6';
   nameEl.textContent = team.name;
   nameEl.style.color = team.color || '#1E5AF6';
-  countEl.textContent = `ส่งแล้ว ${team.submissionCount || 0} ชิ้น`;
+  countEl.textContent = `ส่งแล้ว ${team.count || 0} ชิ้น`;
 
   banner.style.backgroundColor = team.bg || '#EFF6FF';
   banner.style.borderColor = (team.color || '#1E5AF6') + '40';
@@ -234,7 +234,7 @@ function renderModalTeamList(teams) {
       </div>
       <div class="min-w-0 flex-1">
         <p class="text-xs font-extrabold text-slate-800 truncate">${escapeHtml(team.name)}</p>
-        <p class="text-[10px] text-slate-400 font-medium">ส่งแล้ว ${team.submissionCount || 0} ชิ้น</p>
+        <p class="text-[10px] text-slate-400 font-medium">ส่งแล้ว ${team.count || 0} ชิ้น</p>
       </div>
     `;
 
